@@ -3,4 +3,6 @@ pub enum AmmMathError {
     ZeroAmount,
     InvalidFee,
     ArithmeticFailure,
+    ZeroOutput,
+    ZeroReserve,
 }
