@@ -289,4 +289,127 @@ mod tests {
 
         assert_eq!(result, u64::MAX);
     }
+    #[test]
+    fn calculates_proportional_liquidity_withdrawal() {
+        let result = calculate_liquidity_withdrawal(1_000, 2_000, 1_000, 100).unwrap();
+
+        assert_eq!(
+            result,
+            LiquidityWithdrawal {
+                amount_a: 100,
+                amount_b: 200,
+            }
+        );
+    }
+
+    #[test]
+    fn withdrawing_half_lp_supply_returns_half_reserves() {
+        let result = calculate_liquidity_withdrawal(1_000, 2_000, 1_000, 500).unwrap();
+
+        assert_eq!(
+            result,
+            LiquidityWithdrawal {
+                amount_a: 500,
+                amount_b: 1_000,
+            }
+        );
+    }
+
+    #[test]
+    fn withdrawing_full_lp_supply_returns_full_reserves() {
+        let result = calculate_liquidity_withdrawal(1_000, 2_000, 1_000, 1_000).unwrap();
+
+        assert_eq!(
+            result,
+            LiquidityWithdrawal {
+                amount_a: 1_000,
+                amount_b: 2_000,
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_zero_lp_burn() {
+        let result = calculate_liquidity_withdrawal(1_000, 2_000, 1_000, 0);
+
+        assert_eq!(result, Err(AmmMathError::ZeroAmount));
+    }
+
+    #[test]
+    fn rejects_zero_reserve_a_for_withdrawal() {
+        let result = calculate_liquidity_withdrawal(0, 2_000, 1_000, 100);
+
+        assert_eq!(result, Err(AmmMathError::ZeroReserve));
+    }
+
+    #[test]
+    fn rejects_zero_reserve_b_for_withdrawal() {
+        let result = calculate_liquidity_withdrawal(1_000, 0, 1_000, 100);
+
+        assert_eq!(result, Err(AmmMathError::ZeroReserve));
+    }
+
+    #[test]
+    fn rejects_zero_lp_supply_for_withdrawal() {
+        let result = calculate_liquidity_withdrawal(1_000, 2_000, 0, 100);
+
+        assert_eq!(result, Err(AmmMathError::ZeroLiquiditySupply));
+    }
+
+    #[test]
+    fn rejects_lp_burn_greater_than_total_supply() {
+        let result = calculate_liquidity_withdrawal(1_000, 2_000, 1_000, 1_001);
+
+        assert_eq!(result, Err(AmmMathError::LiquidityBurnExceedsSupply));
+    }
+
+    #[test]
+    fn rejects_withdrawal_that_rounds_to_zero() {
+        let result = calculate_liquidity_withdrawal(100, 100, 1_000_000, 1);
+
+        assert_eq!(result, Err(AmmMathError::ZeroWithdrawalAmount));
+    }
+
+    #[test]
+    fn handles_maximum_u64_withdrawal_values() {
+        let result =
+            calculate_liquidity_withdrawal(u64::MAX, u64::MAX, u64::MAX, u64::MAX).unwrap();
+
+        assert_eq!(
+            result,
+            LiquidityWithdrawal {
+                amount_a: u64::MAX,
+                amount_b: u64::MAX,
+            }
+        );
+    }
+
+    #[test]
+    fn withdrawal_is_symmetric_between_tokens() {
+        let normal = calculate_liquidity_withdrawal(1_000, 2_000, 1_000, 100).unwrap();
+
+        let reversed = calculate_liquidity_withdrawal(2_000, 1_000, 1_000, 100).unwrap();
+
+        assert_eq!(normal.amount_a, reversed.amount_b);
+        assert_eq!(normal.amount_b, reversed.amount_a);
+    }
+
+    #[test]
+    fn withdrawal_never_exceeds_pool_reserves_for_sample_cases() {
+        let cases = [
+            (1_000_u64, 2_000_u64, 1_000_u64, 100_u64),
+            (10_000, 50_000, 5_000, 1_000),
+            (1_000_000, 2_000_000, 100_000, 50_000),
+            (u64::MAX, u64::MAX, u64::MAX, u64::MAX),
+        ];
+
+        for (reserve_a, reserve_b, lp_supply, lp_to_burn) in cases {
+            let result =
+                calculate_liquidity_withdrawal(reserve_a, reserve_b, lp_supply, lp_to_burn)
+                    .unwrap();
+
+            assert!(result.amount_a <= reserve_a);
+            assert!(result.amount_b <= reserve_b);
+        }
+    }
 }
