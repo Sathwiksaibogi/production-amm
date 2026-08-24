@@ -67,13 +67,7 @@ mod tests {
 
     #[test]
     fn calculates_swap_output_without_fee() {
-        let result = calculate_swap_output(
-            1_000,
-            2_000,
-            100,
-            0,
-        )
-        .unwrap();
+        let result = calculate_swap_output(1_000, 2_000, 100, 0).unwrap();
 
         assert_eq!(
             result,
@@ -87,60 +81,35 @@ mod tests {
 
     #[test]
     fn rejects_zero_input_reserve() {
-        let result = calculate_swap_output(
-            0,
-            2_000,
-            100,
-            30,
-        );
+        let result = calculate_swap_output(0, 2_000, 100, 30);
 
         assert_eq!(result, Err(AmmMathError::ZeroReserve));
     }
 
     #[test]
     fn rejects_zero_output_reserve() {
-        let result = calculate_swap_output(
-            1_000,
-            0,
-            100,
-            30,
-        );
+        let result = calculate_swap_output(1_000, 0, 100, 30);
 
         assert_eq!(result, Err(AmmMathError::ZeroReserve));
     }
 
     #[test]
     fn propagates_zero_amount_error() {
-        let result = calculate_swap_output(
-            1_000,
-            2_000,
-            0,
-            30,
-        );
+        let result = calculate_swap_output(1_000, 2_000, 0, 30);
 
         assert_eq!(result, Err(AmmMathError::ZeroAmount));
     }
 
     #[test]
     fn propagates_invalid_fee_error() {
-        let result = calculate_swap_output(
-            1_000,
-            2_000,
-            100,
-            10_000,
-        );
+        let result = calculate_swap_output(1_000, 2_000, 100, 10_000);
 
         assert_eq!(result, Err(AmmMathError::InvalidFee));
     }
 
     #[test]
     fn rejects_swap_when_integer_output_is_zero() {
-        let result = calculate_swap_output(
-            1_000_000,
-            1,
-            1,
-            0,
-        );
+        let result = calculate_swap_output(1_000_000, 1, 1, 0);
 
         assert_eq!(result, Err(AmmMathError::ZeroOutput));
     }
@@ -170,19 +139,13 @@ mod tests {
 
     #[test]
     fn larger_trade_has_worse_average_execution() {
-        let small_trade =
-            calculate_swap_output(1_000, 2_000, 10, 0).unwrap();
+        let small_trade = calculate_swap_output(1_000, 2_000, 10, 0).unwrap();
 
-        let large_trade =
-            calculate_swap_output(1_000, 2_000, 100, 0).unwrap();
+        let large_trade = calculate_swap_output(1_000, 2_000, 100, 0).unwrap();
 
-        let small_trade_rate =
-            (small_trade.amount_out as u128 * 1_000_000)
-                / 10;
+        let small_trade_rate = (small_trade.amount_out as u128 * 1_000_000) / 10;
 
-        let large_trade_rate =
-            (large_trade.amount_out as u128 * 1_000_000)
-                / 100;
+        let large_trade_rate = (large_trade.amount_out as u128 * 1_000_000) / 100;
 
         assert!(
             small_trade_rate > large_trade_rate,
@@ -192,11 +155,9 @@ mod tests {
 
     #[test]
     fn deeper_pool_gives_better_execution_for_same_trade() {
-        let shallow =
-            calculate_swap_output(1_000, 2_000, 100, 0).unwrap();
+        let shallow = calculate_swap_output(1_000, 2_000, 100, 0).unwrap();
 
-        let deep =
-            calculate_swap_output(100_000, 200_000, 100, 0).unwrap();
+        let deep = calculate_swap_output(100_000, 200_000, 100, 0).unwrap();
 
         assert!(
             deep.amount_out > shallow.amount_out,
@@ -206,11 +167,9 @@ mod tests {
 
     #[test]
     fn fee_reduces_swap_output() {
-        let without_fee =
-            calculate_swap_output(1_000, 2_000, 100, 0).unwrap();
+        let without_fee = calculate_swap_output(1_000, 2_000, 100, 0).unwrap();
 
-        let with_fee =
-            calculate_swap_output(1_000, 2_000, 100, 100).unwrap();
+        let with_fee = calculate_swap_output(1_000, 2_000, 100, 100).unwrap();
 
         assert!(
             with_fee.amount_out < without_fee.amount_out,
@@ -222,24 +181,14 @@ mod tests {
     fn fee_information_matches_input_accounting() {
         let amount_in = 123_456;
 
-        let result =
-            calculate_swap_output(1_000_000, 2_000_000, amount_in, 30).unwrap();
+        let result = calculate_swap_output(1_000_000, 2_000_000, amount_in, 30).unwrap();
 
-        assert_eq!(
-            result.fee_amount + result.amount_in_after_fee,
-            amount_in
-        );
+        assert_eq!(result.fee_amount + result.amount_in_after_fee, amount_in);
     }
 
     #[test]
     fn handles_large_values_without_u64_intermediate_overflow() {
-        let result = calculate_swap_output(
-            u64::MAX,
-            u64::MAX,
-            u64::MAX,
-            0,
-        )
-        .unwrap();
+        let result = calculate_swap_output(u64::MAX, u64::MAX, u64::MAX, 0).unwrap();
 
         assert!(result.amount_out > 0);
         assert!(result.amount_out < u64::MAX);
