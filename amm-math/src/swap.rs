@@ -2,9 +2,9 @@ use crate::error::AmmMathError;
 use crate::fees::calculate_fees;
 #[derive(Debug, PartialEq, Eq)]
 pub struct SwapResult {
-    fee_amount: u64,
-    amount_in_after_fee: u64,
-    amount_out: u64,
+    pub fee_amount: u64,
+    pub amount_in_after_fee: u64,
+    pub amount_out: u64,
 }
 
 pub fn calculate_swap_output(

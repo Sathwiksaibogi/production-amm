@@ -58,8 +58,8 @@ pub fn calculate_liquidity_added(
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct LiquidityWithdrawal {
-    amount_a: u64,
-    amount_b: u64,
+    pub amount_a: u64,
+    pub amount_b: u64,
 }
 pub fn calculate_liquidity_withdrawal(
     reserve_a: u64,
