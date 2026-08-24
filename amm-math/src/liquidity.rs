@@ -14,6 +14,48 @@ pub fn calculate_initial_liquidity(amount_a: u64, amount_b: u64) -> Result<u64, 
     Ok(initial_lp)
 }
 
+pub fn calculate_liquidity_added(
+    reserve_a: u64,
+    reserve_b: u64,
+    amount_a: u64,
+    amount_b: u64,
+    lp_supply: u64,
+) -> Result<u64, AmmMathError> {
+    if amount_a == 0 || amount_b == 0 {
+        return Err(AmmMathError::ZeroAmount);
+    }
+    if reserve_a == 0 || reserve_b == 0 {
+        return Err(AmmMathError::ZeroReserve);
+    }
+    if lp_supply == 0 {
+        return Err(AmmMathError::ZeroLiquiditySupply);
+    }
+    let reserve_a_u128 = u128::from(reserve_a);
+    let reserve_b_u128 = u128::from(reserve_b);
+    let amount_a_u128 = u128::from(amount_a);
+    let amount_b_u128 = u128::from(amount_b);
+    let lp_supply_u128 = u128::from(lp_supply);
+
+    let left = amount_a_u128 * reserve_b_u128;
+    let right = amount_b_u128 * reserve_a_u128;
+
+    if left != right {
+        return Err(AmmMathError::InvalidLiquidityRatio);
+    }
+
+    let numerator = amount_a_u128 * lp_supply_u128;
+    let lp_a_minted_u128 = numerator / reserve_a_u128;
+
+    let lp_a_minted =
+        u64::try_from(lp_a_minted_u128).map_err(|_| AmmMathError::ArithmeticFailure)?;
+
+    if lp_a_minted == 0 {
+        return Err(AmmMathError::ZeroLiquidityMinted);
+    }
+
+    Ok(lp_a_minted)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

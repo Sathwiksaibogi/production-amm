@@ -5,4 +5,7 @@ pub enum AmmMathError {
     ArithmeticFailure,
     ZeroOutput,
     ZeroReserve,
+    InvalidLiquidityRatio,
+    ZeroLiquiditySupply,
+    ZeroLiquidityMinted,
 }
