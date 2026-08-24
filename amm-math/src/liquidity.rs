@@ -150,4 +150,99 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn calculates_proportional_liquidity_added() {
+        let result = calculate_liquidity_added(
+            1_000, // reserve_a
+            2_000, // reserve_b
+            100,   // amount_a
+            200,   // amount_b
+            1_000, // lp_supply
+        )
+        .unwrap();
+
+        assert_eq!(result, 100);
+    }
+
+    #[test]
+    fn depositing_amounts_equal_to_reserves_mints_current_lp_supply() {
+        let result = calculate_liquidity_added(1_000, 2_000, 1_000, 2_000, 500).unwrap();
+
+        assert_eq!(result, 500);
+    }
+
+    #[test]
+    fn rejects_invalid_liquidity_ratio() {
+        let result = calculate_liquidity_added(1_000, 2_000, 100, 150, 1_000);
+
+        assert_eq!(result, Err(AmmMathError::InvalidLiquidityRatio));
+    }
+
+    #[test]
+    fn rejects_zero_amount_a_for_existing_liquidity() {
+        let result = calculate_liquidity_added(1_000, 2_000, 0, 200, 1_000);
+
+        assert_eq!(result, Err(AmmMathError::ZeroAmount));
+    }
+
+    #[test]
+    fn rejects_zero_amount_b_for_existing_liquidity() {
+        let result = calculate_liquidity_added(1_000, 2_000, 100, 0, 1_000);
+
+        assert_eq!(result, Err(AmmMathError::ZeroAmount));
+    }
+
+    #[test]
+    fn rejects_zero_reserve_a() {
+        let result = calculate_liquidity_added(0, 2_000, 100, 200, 1_000);
+
+        assert_eq!(result, Err(AmmMathError::ZeroReserve));
+    }
+
+    #[test]
+    fn rejects_zero_reserve_b() {
+        let result = calculate_liquidity_added(1_000, 0, 100, 200, 1_000);
+
+        assert_eq!(result, Err(AmmMathError::ZeroReserve));
+    }
+
+    #[test]
+    fn rejects_zero_lp_supply_for_existing_pool() {
+        let result = calculate_liquidity_added(1_000, 2_000, 100, 200, 0);
+
+        assert_eq!(result, Err(AmmMathError::ZeroLiquiditySupply));
+    }
+
+    #[test]
+    fn rejects_deposit_that_would_mint_zero_lp() {
+        let result = calculate_liquidity_added(1_000, 2_000, 1, 2, 100);
+
+        assert_eq!(result, Err(AmmMathError::ZeroLiquidityMinted));
+    }
+
+    #[test]
+    fn doubling_proportional_deposit_doubles_lp_minted() {
+        let smaller = calculate_liquidity_added(1_000, 2_000, 100, 200, 1_000).unwrap();
+
+        let larger = calculate_liquidity_added(1_000, 2_000, 200, 400, 1_000).unwrap();
+
+        assert_eq!(larger, smaller * 2);
+    }
+
+    #[test]
+    fn liquidity_added_is_symmetric_between_tokens() {
+        let normal = calculate_liquidity_added(1_000, 2_000, 100, 200, 1_000).unwrap();
+
+        let reversed = calculate_liquidity_added(2_000, 1_000, 200, 100, 1_000).unwrap();
+
+        assert_eq!(normal, reversed);
+    }
+
+    #[test]
+    fn handles_maximum_u64_values_for_proportional_liquidity() {
+        let result =
+            calculate_liquidity_added(u64::MAX, u64::MAX, u64::MAX, u64::MAX, u64::MAX).unwrap();
+
+        assert_eq!(result, u64::MAX);
+    }
 }
