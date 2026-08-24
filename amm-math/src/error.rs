@@ -8,4 +8,6 @@ pub enum AmmMathError {
     InvalidLiquidityRatio,
     ZeroLiquiditySupply,
     ZeroLiquidityMinted,
+    LiquidityBurnExceedsSupply,
+    ZeroWithdrawalAmount,
 }

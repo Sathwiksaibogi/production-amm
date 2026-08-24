@@ -56,6 +56,50 @@ pub fn calculate_liquidity_added(
     Ok(lp_a_minted)
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct LiquidityWithdrawal {
+    amount_a: u64,
+    amount_b: u64,
+}
+pub fn calculate_liquidity_withdrawal(
+    reserve_a: u64,
+    reserve_b: u64,
+    lp_supply: u64,
+    lp_to_burn: u64,
+) -> Result<LiquidityWithdrawal, AmmMathError> {
+    if lp_to_burn == 0 {
+        return Err(AmmMathError::ZeroAmount);
+    }
+    if reserve_a == 0 || reserve_b == 0 {
+        return Err(AmmMathError::ZeroReserve);
+    }
+    if lp_supply == 0 {
+        return Err(AmmMathError::ZeroLiquiditySupply);
+    }
+    if lp_to_burn > lp_supply {
+        return Err(AmmMathError::LiquidityBurnExceedsSupply);
+    }
+    let reserve_a_u128 = u128::from(reserve_a);
+    let reserve_b_u128 = u128::from(reserve_b);
+    let lp_supply_u128 = u128::from(lp_supply);
+    let lp_to_burn_u128 = u128::from(lp_to_burn);
+
+    let numerator_a = reserve_a_u128 * lp_to_burn_u128;
+    let numerator_b = reserve_b_u128 * lp_to_burn_u128;
+
+    let amount_a_u128 = numerator_a / lp_supply_u128;
+    let amount_b_u128 = numerator_b / lp_supply_u128;
+
+    let amount_a = u64::try_from(amount_a_u128).map_err(|_| AmmMathError::ArithmeticFailure)?;
+    let amount_b = u64::try_from(amount_b_u128).map_err(|_| AmmMathError::ArithmeticFailure)?;
+
+    if amount_a == 0 || amount_b == 0 {
+        return Err(AmmMathError::ZeroWithdrawalAmount);
+    }
+
+    Ok(LiquidityWithdrawal { amount_a, amount_b })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
