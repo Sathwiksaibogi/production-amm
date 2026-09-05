@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "amm-math",
+    "programs/production-amm",
+]
+resolver = "2"
