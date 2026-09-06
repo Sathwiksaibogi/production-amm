@@ -1,0 +1,133 @@
+Streaming transaction logs mentioning HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC. Confirmed commitment
+Transaction executed in slot 9:
+  Signature: 61k4LbxHyBwJgB9rEp47vHCM584egtMJJeYsQi7zir9zT6reihT8UnQm2kAG2in5MKaEAWiRm2usJ1oc7jsjixsi
+  Status: Ok
+  Log Messages:
+    Program HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC invoke [1]
+    Program log: Instruction: InitializePool
+    Program 11111111111111111111111111111111 invoke [2]
+    Program 11111111111111111111111111111111 success
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [2]
+    Program log: Create
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 179 of 182275 compute units
+    Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program 11111111111111111111111111111111 invoke [3]
+    Program 11111111111111111111111111111111 success
+    Program log: Initialize the associated token account
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 37 of 177186 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 233 of 174723 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 13510 of 187696 compute units
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [2]
+    Program log: Create
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 179 of 159391 compute units
+    Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program 11111111111111111111111111111111 invoke [3]
+    Program 11111111111111111111111111111111 success
+    Program log: Initialize the associated token account
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 37 of 154302 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 233 of 151839 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 15010 of 166312 compute units
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success
+    Program 11111111111111111111111111111111 invoke [2]
+    Program 11111111111111111111111111111111 success
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 202 of 138352 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC consumed 63560 of 200000 compute units
+    Program HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC success
+Transaction executed in slot 10:
+  Signature: 3sjDXHVUjSueqFd3GSdhZm4aoP9s8xTE81eqceeZREf7tfP4WcdNW7edcRXefX3szfMxfYG2sGQAGLwMBVYQrwgg
+  Status: Error processing Instruction 0: custom program error: 0x1770
+  Log Messages:
+    Program HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC invoke [1]
+    Program log: Instruction: InitializePool
+    Program 11111111111111111111111111111111 invoke [2]
+    Program 11111111111111111111111111111111 success
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [2]
+    Program log: Create
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 179 of 179604 compute units
+    Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program 11111111111111111111111111111111 invoke [3]
+    Program 11111111111111111111111111111111 success
+    Program log: Initialize the associated token account
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 37 of 174515 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 233 of 172052 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 15010 of 186525 compute units
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success
+    Program 11111111111111111111111111111111 invoke [2]
+    Program 11111111111111111111111111111111 success
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 202 of 157322 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program log: AnchorError caused by account: token_1_mint. Error Code: IdenticalMints. Error Number: 6000. Error Message: The two mints must be different.
+    Program HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC consumed 45353 of 200000 compute units
+    Program HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC failed: custom program error: 0x1770
+Transaction executed in slot 10:
+  Signature: 4apU64opE1DPVfY9METEPcE614VPu7ZfpjFyaTy5rEvDRjEmUYKSpfiS2sxHF4cge58BCNNC5MdW5zZ1sJcVxXs2
+  Status: Error processing Instruction 0: custom program error: 0x1771
+  Log Messages:
+    Program HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC invoke [1]
+    Program log: Instruction: InitializePool
+    Program 11111111111111111111111111111111 invoke [2]
+    Program 11111111111111111111111111111111 success
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [2]
+    Program log: Create
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 179 of 171775 compute units
+    Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program 11111111111111111111111111111111 invoke [3]
+    Program 11111111111111111111111111111111 success
+    Program log: Initialize the associated token account
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 37 of 166686 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 233 of 164223 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 16510 of 180196 compute units
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [2]
+    Program log: Create
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 179 of 145891 compute units
+    Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program 11111111111111111111111111111111 invoke [3]
+    Program 11111111111111111111111111111111 success
+    Program log: Initialize the associated token account
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 37 of 140802 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 233 of 138339 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 15010 of 152812 compute units
+    Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success
+    Program 11111111111111111111111111111111 invoke [2]
+    Program 11111111111111111111111111111111 success
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 202 of 127852 compute units
+    Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+    Program log: AnchorError caused by account: token_1_mint. Error Code: NonCanonicalMintOrder. Error Number: 6001. Error Message: The two mints must be in canonical order.
+    Program HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC consumed 74895 of 200000 compute units
+    Program HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC failed: custom program error: 0x1771

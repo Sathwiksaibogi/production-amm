@@ -5,7 +5,7 @@ use anchor_spl::{
     token::{Mint, Token, TokenAccount},
 };
 
-declare_id!("11111111111111111111111111111111");
+declare_id!("HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC");
 
 pub const LP_DECIMALS: u8 = 9;
 pub const SWAP_FEE_BPS: u16 = 30;
@@ -15,14 +15,6 @@ pub mod production_amm {
     use super::*;
 
     pub fn initialize_pool(ctx: Context<InitializePool>) -> Result<()> {
-        require!(
-            ctx.accounts.token_0_mint.key() != ctx.accounts.token_1_mint.key(),
-            AmmError::IdenticalMints
-        );
-        require!(
-            ctx.accounts.token_0_mint.key() < ctx.accounts.token_1_mint.key(),
-            AmmError::NonCanonicalMintOrder
-        );
         let pool = &mut ctx.accounts.pool;
         pool.token_0_mint = ctx.accounts.token_0_mint.key();
         pool.token_1_mint = ctx.accounts.token_1_mint.key();
@@ -39,6 +31,10 @@ pub struct InitializePool<'info> {
 
     pub token_0_mint: Account<'info, Mint>,
 
+    #[account(
+    constraint = token_0_mint.key() != token_1_mint.key() @ AmmError::IdenticalMints,
+    constraint = token_0_mint.key() < token_1_mint.key() @ AmmError::NonCanonicalMintOrder,
+    )]
     pub token_1_mint: Account<'info, Mint>,
 
     #[account(
@@ -51,7 +47,7 @@ pub struct InitializePool<'info> {
     pub pool: Account<'info, Pool>,
 
     #[account(
-        init,
+        init_if_needed,
         payer=initializer,
         associated_token::mint=token_0_mint,
         associated_token::authority=pool,
@@ -59,7 +55,7 @@ pub struct InitializePool<'info> {
     pub vault_0: Account<'info, TokenAccount>,
 
     #[account(
-        init,
+        init_if_needed,
         payer=initializer,
         associated_token::mint=token_1_mint,
         associated_token::authority=pool,

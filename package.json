@@ -1,0 +1,22 @@
+{
+  "name": "production-amm",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "0.32.1",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.4"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.20",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.0.0",
+    "chai": "^4.5.0",
+    "mocha": "^10.8.2",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^5.7.0"
+  }
+}
