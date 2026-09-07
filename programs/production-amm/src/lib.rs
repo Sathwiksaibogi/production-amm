@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
 
-use amm_math::{calculate_initial_liquidity, calculate_liquidity_added, AmmMathError};
+use amm_math::{
+    calculate_initial_liquidity, calculate_liquidity_added, calculate_liquidity_withdrawal,
+    AmmMathError,
+};
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::{Mint, Token, TokenAccount},
@@ -98,6 +101,99 @@ pub mod production_amm {
                 &[pool_signer_seeds],
             ),
             lp_to_mint,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn remove_liquidity(
+        ctx: Context<RemoveLiquidity>,
+        lp_to_burn: u64,
+        minimum_amount_0_out: u64,
+        minimum_amount_1_out: u64,
+    ) -> Result<()> {
+        let reserve_0 = ctx.accounts.vault_0.amount;
+        let reserve_1 = ctx.accounts.vault_1.amount;
+        let lp_supply = ctx.accounts.lp_mint.supply;
+
+        require!(
+            lp_to_burn <= ctx.accounts.user_lp_account.amount,
+            AmmError::InsufficientLpBalance
+        );
+
+        let withdrawal =
+            calculate_liquidity_withdrawal(reserve_0, reserve_1, lp_supply, lp_to_burn)
+                .map_err(map_withdrawal_math_error)?;
+
+        let amount_0_out = withdrawal.amount_a;
+        let amount_1_out = withdrawal.amount_b;
+
+        require!(
+            amount_0_out >= minimum_amount_0_out,
+            AmmError::MinimumAmount0NotMet
+        );
+
+        require!(
+            amount_1_out >= minimum_amount_1_out,
+            AmmError::MinimumAmount1NotMet
+        );
+
+        let burn_lp_accounts = anchor_spl::token::Burn {
+            mint: ctx.accounts.lp_mint.to_account_info(),
+            from: ctx.accounts.user_lp_account.to_account_info(),
+            authority: ctx.accounts.liquidity_provider.to_account_info(),
+        };
+
+        anchor_spl::token::burn(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                burn_lp_accounts,
+            ),
+            lp_to_burn,
+        )?;
+
+        let token_0_key = ctx.accounts.token_0_mint.key();
+        let token_1_key = ctx.accounts.token_1_mint.key();
+        let pool_bump = [ctx.accounts.pool.bump];
+        let pool_signer_seeds = &[
+            b"pool",
+            token_0_key.as_ref(),
+            token_1_key.as_ref(),
+            &pool_bump,
+        ];
+
+        let transfer_0_accounts = anchor_spl::token::TransferChecked {
+            from: ctx.accounts.vault_0.to_account_info(),
+            mint: ctx.accounts.token_0_mint.to_account_info(),
+            to: ctx.accounts.user_token_0.to_account_info(),
+            authority: ctx.accounts.pool.to_account_info(),
+        };
+
+        anchor_spl::token::transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                transfer_0_accounts,
+                &[pool_signer_seeds],
+            ),
+            amount_0_out,
+            ctx.accounts.token_0_mint.decimals,
+        )?;
+
+        let transfer_1_accounts = anchor_spl::token::TransferChecked {
+            from: ctx.accounts.vault_1.to_account_info(),
+            mint: ctx.accounts.token_1_mint.to_account_info(),
+            to: ctx.accounts.user_token_1.to_account_info(),
+            authority: ctx.accounts.pool.to_account_info(),
+        };
+
+        anchor_spl::token::transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                transfer_1_accounts,
+                &[pool_signer_seeds],
+            ),
+            amount_1_out,
+            ctx.accounts.token_1_mint.decimals,
         )?;
 
         Ok(())
@@ -224,6 +320,69 @@ pub struct AddLiquidity<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
+#[derive(Accounts)]
+pub struct RemoveLiquidity<'info> {
+    pub liquidity_provider: Signer<'info>,
+
+    pub token_0_mint: Box<Account<'info, Mint>>,
+
+    pub token_1_mint: Box<Account<'info, Mint>>,
+
+    #[account(
+        seeds=[b"pool",token_0_mint.key().as_ref(),token_1_mint.key().as_ref()],
+        bump=pool.bump,
+        has_one = token_0_mint,
+        has_one = token_1_mint,
+    )]
+    pub pool: Box<Account<'info, Pool>>,
+
+    #[account(
+        mut,
+        associated_token::mint=token_0_mint,
+        associated_token::authority=pool,
+    )]
+    pub vault_0: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        associated_token::mint=token_1_mint,
+        associated_token::authority=pool,
+    )]
+    pub vault_1: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        token::mint=token_0_mint,
+        token::authority=liquidity_provider,
+    )]
+    pub user_token_0: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        token::mint=token_1_mint,
+        token::authority=liquidity_provider,
+    )]
+    pub user_token_1: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        seeds=[b"lp_mint",pool.key().as_ref()],
+        bump,
+        mint::decimals = LP_DECIMALS,
+        mint::authority=pool,
+    )]
+    pub lp_mint: Box<Account<'info, Mint>>,
+
+    #[account(
+        mut,
+        token::mint=lp_mint,
+        token::authority=liquidity_provider,
+    )]
+    pub user_lp_account: Box<Account<'info, TokenAccount>>,
+
+    pub token_program: Program<'info, Token>,
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct Pool {
@@ -250,6 +409,16 @@ pub enum AmmError {
     MathError,
     #[msg("LP output is below the user's minimum")]
     MinimumLpNotMet,
+    #[msg("LP burn amount exceeds the total LP supply")]
+    LiquidityBurnExceedsSupply,
+    #[msg("LP burn amount is too small to withdraw both assets")]
+    ZeroWithdrawalAmount,
+    #[msg("Token 0 output is below the user's minimum")]
+    MinimumAmount0NotMet,
+    #[msg("Token 1 output is below the user's minimum")]
+    MinimumAmount1NotMet,
+    #[msg("Liquidity provider does not have enough LP tokens")]
+    InsufficientLpBalance,
 }
 
 fn map_liquidity_math_error(err: AmmMathError) -> anchor_lang::error::Error {
@@ -268,6 +437,34 @@ fn map_liquidity_math_error(err: AmmMathError) -> anchor_lang::error::Error {
 
         AmmMathError::ZeroReserve | AmmMathError::ZeroLiquiditySupply => {
             error!(AmmError::InvalidPoolState)
+        }
+
+        AmmMathError::ArithmeticFailure => {
+            error!(AmmError::MathError)
+        }
+
+        _ => {
+            error!(AmmError::MathError)
+        }
+    }
+}
+
+fn map_withdrawal_math_error(err: AmmMathError) -> anchor_lang::error::Error {
+    match err {
+        AmmMathError::ZeroAmount => {
+            error!(AmmError::InvalidAmount)
+        }
+
+        AmmMathError::ZeroReserve | AmmMathError::ZeroLiquiditySupply => {
+            error!(AmmError::InvalidPoolState)
+        }
+
+        AmmMathError::LiquidityBurnExceedsSupply => {
+            error!(AmmError::LiquidityBurnExceedsSupply)
+        }
+
+        AmmMathError::ZeroWithdrawalAmount => {
+            error!(AmmError::ZeroWithdrawalAmount)
         }
 
         AmmMathError::ArithmeticFailure => {
