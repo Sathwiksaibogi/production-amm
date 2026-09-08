@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 use amm_math::{
     calculate_initial_liquidity, calculate_liquidity_added, calculate_liquidity_withdrawal,
-    AmmMathError,
+    calculate_swap_output, AmmMathError,
 };
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -198,6 +198,108 @@ pub mod production_amm {
 
         Ok(())
     }
+
+    pub fn swap(
+        ctx: Context<Swap>,
+        direction: SwapDirection,
+        amount_in: u64,
+        minimum_amount_out: u64,
+    ) -> Result<()> {
+        let (reserve_in, reserve_out) = match direction {
+            SwapDirection::Token0ToToken1 => {
+                (ctx.accounts.vault_0.amount, ctx.accounts.vault_1.amount)
+            }
+            SwapDirection::Token1ToToken0 => {
+                (ctx.accounts.vault_1.amount, ctx.accounts.vault_0.amount)
+            }
+        };
+
+        let swap_result = calculate_swap_output(reserve_in, reserve_out, amount_in, SWAP_FEE_BPS)
+            .map_err(map_swap_math_error)?;
+        let amount_out = swap_result.amount_out;
+
+        require!(
+            amount_out >= minimum_amount_out,
+            AmmError::MinimumAmountOutNotMet
+        );
+
+        let (
+            user_input,
+            input_mint,
+            input_vault,
+            output_vault,
+            output_mint,
+            user_output,
+            input_decimals,
+            output_decimals,
+        ) = match direction {
+            SwapDirection::Token0ToToken1 => (
+                ctx.accounts.user_token_0.to_account_info(),
+                ctx.accounts.token_0_mint.to_account_info(),
+                ctx.accounts.vault_0.to_account_info(),
+                ctx.accounts.vault_1.to_account_info(),
+                ctx.accounts.token_1_mint.to_account_info(),
+                ctx.accounts.user_token_1.to_account_info(),
+                ctx.accounts.token_0_mint.decimals,
+                ctx.accounts.token_1_mint.decimals,
+            ),
+            SwapDirection::Token1ToToken0 => (
+                ctx.accounts.user_token_1.to_account_info(),
+                ctx.accounts.token_1_mint.to_account_info(),
+                ctx.accounts.vault_1.to_account_info(),
+                ctx.accounts.vault_0.to_account_info(),
+                ctx.accounts.token_0_mint.to_account_info(),
+                ctx.accounts.user_token_0.to_account_info(),
+                ctx.accounts.token_1_mint.decimals,
+                ctx.accounts.token_0_mint.decimals,
+            ),
+        };
+
+        let trader_transfer_accounts = anchor_spl::token::TransferChecked {
+            from: user_input,
+            mint: input_mint,
+            to: input_vault,
+            authority: ctx.accounts.trader.to_account_info(),
+        };
+
+        anchor_spl::token::transfer_checked(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                trader_transfer_accounts,
+            ),
+            amount_in,
+            input_decimals,
+        )?;
+
+        let token_0_key = ctx.accounts.token_0_mint.key();
+        let token_1_key = ctx.accounts.token_1_mint.key();
+        let pool_bump = [ctx.accounts.pool.bump];
+        let pool_signer_seeds = &[
+            b"pool",
+            token_0_key.as_ref(),
+            token_1_key.as_ref(),
+            &pool_bump,
+        ];
+
+        let pool_transfer_accounts = anchor_spl::token::TransferChecked {
+            from: output_vault,
+            mint: output_mint,
+            to: user_output,
+            authority: ctx.accounts.pool.to_account_info(),
+        };
+
+        anchor_spl::token::transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                pool_transfer_accounts,
+                &[pool_signer_seeds],
+            ),
+            amount_out,
+            output_decimals,
+        )?;
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -383,12 +485,65 @@ pub struct RemoveLiquidity<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct Swap<'info> {
+    pub trader: Signer<'info>,
+
+    pub token_0_mint: Box<Account<'info, Mint>>,
+
+    pub token_1_mint: Box<Account<'info, Mint>>,
+
+    #[account(
+        seeds=[b"pool",token_0_mint.key().as_ref(),token_1_mint.key().as_ref()],
+        bump=pool.bump,
+        has_one = token_0_mint,
+        has_one = token_1_mint,
+    )]
+    pub pool: Box<Account<'info, Pool>>,
+
+    #[account(
+        mut,
+        associated_token::mint=token_0_mint,
+        associated_token::authority=pool,
+    )]
+    pub vault_0: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        associated_token::mint=token_1_mint,
+        associated_token::authority=pool,
+    )]
+    pub vault_1: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        token::mint=token_0_mint,
+        token::authority=trader,
+    )]
+    pub user_token_0: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        token::mint=token_1_mint,
+        token::authority=trader,
+    )]
+    pub user_token_1: Box<Account<'info, TokenAccount>>,
+
+    pub token_program: Program<'info, Token>,
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct Pool {
     pub token_0_mint: Pubkey,
     pub token_1_mint: Pubkey,
     pub bump: u8,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+pub enum SwapDirection {
+    Token0ToToken1,
+    Token1ToToken0,
 }
 
 #[error_code]
@@ -419,6 +574,10 @@ pub enum AmmError {
     MinimumAmount1NotMet,
     #[msg("Liquidity provider does not have enough LP tokens")]
     InsufficientLpBalance,
+    #[msg("Swap output is below the user's minimum")]
+    MinimumAmountOutNotMet,
+    #[msg("Swap output is zero")]
+    ZeroSwapOutput,
 }
 
 fn map_liquidity_math_error(err: AmmMathError) -> anchor_lang::error::Error {
@@ -468,6 +627,29 @@ fn map_withdrawal_math_error(err: AmmMathError) -> anchor_lang::error::Error {
         }
 
         AmmMathError::ArithmeticFailure => {
+            error!(AmmError::MathError)
+        }
+
+        _ => {
+            error!(AmmError::MathError)
+        }
+    }
+}
+fn map_swap_math_error(err: AmmMathError) -> anchor_lang::error::Error {
+    match err {
+        AmmMathError::ZeroAmount => {
+            error!(AmmError::InvalidAmount)
+        }
+
+        AmmMathError::ZeroReserve => {
+            error!(AmmError::InvalidPoolState)
+        }
+
+        AmmMathError::ZeroOutput => {
+            error!(AmmError::ZeroSwapOutput)
+        }
+
+        AmmMathError::ArithmeticFailure | AmmMathError::InvalidFee => {
             error!(AmmError::MathError)
         }
 
