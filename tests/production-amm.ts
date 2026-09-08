@@ -4,13 +4,16 @@ import { Program } from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
+  AuthorityType,
   createMint,
   getAccount,
   getAssociatedTokenAddressSync,
   getMint,
+  setAuthority,
 } from "@solana/spl-token";
 
 import {
+  Keypair,
   PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
@@ -67,6 +70,29 @@ function getAnchorErrorCode(error: unknown): string | undefined {
   return parsedError?.error.errorCode.code;
 }
 
+async function expectAnchorError(
+  promise: Promise<unknown>,
+  expectedCode: string
+): Promise<void> {
+  let caughtError: unknown = null;
+
+  try {
+    await promise;
+  } catch (error) {
+    caughtError = error;
+  }
+
+  assert.isNotNull(
+    caughtError,
+    `Expected transaction to fail with ${expectedCode}`
+  );
+
+  assert.equal(
+    getAnchorErrorCode(caughtError),
+    expectedCode
+  );
+}
+
 describe("production-amm: initialize_pool", () => {
   const provider = anchor.AnchorProvider.env();
 
@@ -92,6 +118,154 @@ describe("production-amm: initialize_pool", () => {
 
   let lpMintPda: PublicKey;
 
+  async function revokeMintAuthority(mint: PublicKey): Promise<void> {
+    await setAuthority(
+      provider.connection,
+      payer,
+      mint,
+      payer,
+      AuthorityType.MintTokens,
+      null
+    );
+  }
+
+async function createCanonicalMintPairWithMintAuthority(
+  mintAuthoritySide: 0 | 1
+): Promise<{
+  token0Mint: PublicKey;
+  token1Mint: PublicKey;
+}> {
+  const mintAKeypair = Keypair.generate();
+  const mintBKeypair = Keypair.generate();
+
+  const mintAIsToken0 =
+    Buffer.compare(
+      mintAKeypair.publicKey.toBuffer(),
+      mintBKeypair.publicKey.toBuffer()
+    ) < 0;
+
+  const token0Keypair = mintAIsToken0
+    ? mintAKeypair
+    : mintBKeypair;
+
+  const token1Keypair = mintAIsToken0
+    ? mintBKeypair
+    : mintAKeypair;
+
+  /*
+   * Both mints must initially be created with
+   * a valid mint authority.
+   */
+  const token0Mint = await createMint(
+    provider.connection,
+    payer,
+    payer.publicKey,
+    null,
+    6,
+    token0Keypair
+  );
+
+  const token1Mint = await createMint(
+    provider.connection,
+    payer,
+    payer.publicKey,
+    null,
+    6,
+    token1Keypair
+  );
+
+  /*
+   * Leave mint authority enabled only on the
+   * side we intentionally want to test.
+   *
+   * The other mint has its authority permanently
+   * revoked so that only ONE mint violates the rule.
+   */
+  if (mintAuthoritySide === 0) {
+    await setAuthority(
+      provider.connection,
+      payer,
+      token1Mint,
+      payer,
+      AuthorityType.MintTokens,
+      null
+    );
+  } else {
+    await setAuthority(
+      provider.connection,
+      payer,
+      token0Mint,
+      payer,
+      AuthorityType.MintTokens,
+      null
+    );
+  }
+
+  return {
+    token0Mint,
+    token1Mint,
+  };
+}
+
+  async function createCanonicalMintPairWithFreezeAuthority(
+    freezeSide: 0 | 1
+  ): Promise<{
+    token0Mint: PublicKey;
+    token1Mint: PublicKey;
+  }> {
+    const freezeAuthority = Keypair.generate();
+
+    const mintAKeypair = Keypair.generate();
+    const mintBKeypair = Keypair.generate();
+
+    const mintAIsToken0 =
+      Buffer.compare(
+        mintAKeypair.publicKey.toBuffer(),
+        mintBKeypair.publicKey.toBuffer()
+      ) < 0;
+
+    const token0Keypair = mintAIsToken0
+      ? mintAKeypair
+      : mintBKeypair;
+
+    const token1Keypair = mintAIsToken0
+      ? mintBKeypair
+      : mintAKeypair;
+
+    const token0Mint = await createMint(
+      provider.connection,
+      payer,
+      payer.publicKey,
+      freezeSide === 0
+        ? freezeAuthority.publicKey
+        : null,
+      6,
+      token0Keypair
+    );
+
+    const token1Mint = await createMint(
+      provider.connection,
+      payer,
+      payer.publicKey,
+      freezeSide === 1
+        ? freezeAuthority.publicKey
+        : null,
+      6,
+      token1Keypair
+    );
+
+    // Keep the requested freeze authority, but permanently revoke
+    // minting authority on both test mints. This prepares the suite
+    // for the AMM's future mint-authority restriction.
+    await revokeMintAuthority(token0Mint);
+    await revokeMintAuthority(token1Mint);
+
+    return {
+      token0Mint,
+      token1Mint,
+    };
+  }
+
   before(async () => {
     /*
      * Create two arbitrary SPL token mints.
@@ -114,6 +288,11 @@ describe("production-amm: initialize_pool", () => {
       null,
       9
     );
+
+    // These initialization tests do not need to mint any token supply,
+    // so revoke minting authority before the pool is initialized.
+    await revokeMintAuthority(mintA);
+    await revokeMintAuthority(mintB);
 
     /*
      * Our protocol requires canonical ordering:
@@ -392,6 +571,10 @@ describe("production-amm: initialize_pool", () => {
           6
         );
 
+      // Keep this test focused on the identical-mint invariant rather
+      // than allowing a future mint-authority check to fail first.
+      await revokeMintAuthority(sameMint);
+
       const [samePool] =
         PublicKey.findProgramAddressSync(
           [
@@ -649,4 +832,314 @@ describe("production-amm: initialize_pool", () => {
       );
     }
   );
+  it(
+    "rejects initialization when token 0 has a freeze authority",
+    async () => {
+      const {
+        token0Mint: freezeToken0Mint,
+        token1Mint: normalToken1Mint,
+      } = await createCanonicalMintPairWithFreezeAuthority(0);
+
+      const [freezePool] =
+        PublicKey.findProgramAddressSync(
+          [
+            Buffer.from("pool"),
+            freezeToken0Mint.toBuffer(),
+            normalToken1Mint.toBuffer(),
+          ],
+          program.programId
+        );
+
+      const freezeVault0 =
+        getAssociatedTokenAddressSync(
+          freezeToken0Mint,
+          freezePool,
+          true
+        );
+
+      const normalVault1 =
+        getAssociatedTokenAddressSync(
+          normalToken1Mint,
+          freezePool,
+          true
+        );
+
+      const [freezeLpMint] =
+        PublicKey.findProgramAddressSync(
+          [
+            Buffer.from("lp_mint"),
+            freezePool.toBuffer(),
+          ],
+          program.programId
+        );
+
+      await expectAnchorError(
+        program.methods
+          .initializePool()
+          .accounts({
+            initializer:
+              provider.wallet.publicKey,
+
+            token0Mint:
+              freezeToken0Mint,
+
+            token1Mint:
+              normalToken1Mint,
+
+            pool:
+              freezePool,
+
+            vault0:
+              freezeVault0,
+
+            vault1:
+              normalVault1,
+
+            lpMint:
+              freezeLpMint,
+
+            systemProgram:
+              SystemProgram.programId,
+
+            tokenProgram:
+              TOKEN_PROGRAM_ID,
+
+            associatedTokenProgram:
+              ASSOCIATED_TOKEN_PROGRAM_ID,
+          })
+          .rpc(),
+        "FreezeAuthorityNotAllowed"
+      );
+    }
+  );
+
+  it(
+    "rejects initialization when token 1 has a freeze authority",
+    async () => {
+      const {
+        token0Mint: normalToken0Mint,
+        token1Mint: freezeToken1Mint,
+      } = await createCanonicalMintPairWithFreezeAuthority(1);
+
+      const [freezePool] =
+        PublicKey.findProgramAddressSync(
+          [
+            Buffer.from("pool"),
+            normalToken0Mint.toBuffer(),
+            freezeToken1Mint.toBuffer(),
+          ],
+          program.programId
+        );
+
+      const normalVault0 =
+        getAssociatedTokenAddressSync(
+          normalToken0Mint,
+          freezePool,
+          true
+        );
+
+      const freezeVault1 =
+        getAssociatedTokenAddressSync(
+          freezeToken1Mint,
+          freezePool,
+          true
+        );
+
+      const [freezeLpMint] =
+        PublicKey.findProgramAddressSync(
+          [
+            Buffer.from("lp_mint"),
+            freezePool.toBuffer(),
+          ],
+          program.programId
+        );
+
+      await expectAnchorError(
+        program.methods
+          .initializePool()
+          .accounts({
+            initializer:
+              provider.wallet.publicKey,
+
+            token0Mint:
+              normalToken0Mint,
+
+            token1Mint:
+              freezeToken1Mint,
+
+            pool:
+              freezePool,
+
+            vault0:
+              normalVault0,
+
+            vault1:
+              freezeVault1,
+
+            lpMint:
+              freezeLpMint,
+
+            systemProgram:
+              SystemProgram.programId,
+
+            tokenProgram:
+              TOKEN_PROGRAM_ID,
+
+            associatedTokenProgram:
+              ASSOCIATED_TOKEN_PROGRAM_ID,
+          })
+          .rpc(),
+        "FreezeAuthorityNotAllowed"
+      );
+    }
+  );
+
+  it(
+  "rejects initialization when token 0 has a mint authority",
+  async () => {
+    const {
+      token0Mint: mintAuthorityToken0,
+      token1Mint: normalToken1,
+    } = await createCanonicalMintPairWithMintAuthority(0);
+
+    const [pool] =
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("pool"),
+          mintAuthorityToken0.toBuffer(),
+          normalToken1.toBuffer(),
+        ],
+        program.programId
+      );
+
+    const vault0 =
+      getAssociatedTokenAddressSync(
+        mintAuthorityToken0,
+        pool,
+        true
+      );
+
+    const vault1 =
+      getAssociatedTokenAddressSync(
+        normalToken1,
+        pool,
+        true
+      );
+
+    const [lpMint] =
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("lp_mint"),
+          pool.toBuffer(),
+        ],
+        program.programId
+      );
+
+    await expectAnchorError(
+      program.methods
+        .initializePool()
+        .accounts({
+          initializer:
+            provider.wallet.publicKey,
+
+          token0Mint:
+            mintAuthorityToken0,
+
+          token1Mint:
+            normalToken1,
+
+          pool,
+          vault0,
+          vault1,
+          lpMint,
+
+          systemProgram:
+            SystemProgram.programId,
+
+          tokenProgram:
+            TOKEN_PROGRAM_ID,
+
+          associatedTokenProgram:
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .rpc(),
+      "MintAuthorityNotAllowed"
+    );
+  }
+);
+
+it(
+  "rejects initialization when token 1 has a mint authority",
+  async () => {
+    const {
+      token0Mint: normalToken0,
+      token1Mint: mintAuthorityToken1,
+    } = await createCanonicalMintPairWithMintAuthority(1);
+
+    const [pool] =
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("pool"),
+          normalToken0.toBuffer(),
+          mintAuthorityToken1.toBuffer(),
+        ],
+        program.programId
+      );
+
+    const vault0 =
+      getAssociatedTokenAddressSync(
+        normalToken0,
+        pool,
+        true
+      );
+
+    const vault1 =
+      getAssociatedTokenAddressSync(
+        mintAuthorityToken1,
+        pool,
+        true
+      );
+
+    const [lpMint] =
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("lp_mint"),
+          pool.toBuffer(),
+        ],
+        program.programId
+      );
+
+    await expectAnchorError(
+      program.methods
+        .initializePool()
+        .accounts({
+          initializer:
+            provider.wallet.publicKey,
+
+          token0Mint:
+            normalToken0,
+
+          token1Mint:
+            mintAuthorityToken1,
+
+          pool,
+          vault0,
+          vault1,
+          lpMint,
+
+          systemProgram:
+            SystemProgram.programId,
+
+          tokenProgram:
+            TOKEN_PROGRAM_ID,
+
+          associatedTokenProgram:
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .rpc(),
+      "MintAuthorityNotAllowed"
+    );
+  }
+);
+
 });

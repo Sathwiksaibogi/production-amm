@@ -4,12 +4,14 @@ import { Program } from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
+  AuthorityType,
   createMint,
   getAccount,
   getAssociatedTokenAddressSync,
   getMint,
   getOrCreateAssociatedTokenAccount,
   mintTo,
+  setAuthority,
   transfer,
 } from "@solana/spl-token";
 
@@ -266,6 +268,32 @@ describe("production-amm: add_liquidity", () => {
       userToken1,
       payer,
       80_000_000n
+    );
+
+    /*
+     * The AMM's production policy will require
+     * both external token mints to have no
+     * remaining mint authority.
+     *
+     * Mint the complete test supply first, then
+     * permanently revoke MintTokens authority.
+     */
+    await setAuthority(
+      provider.connection,
+      payer,
+      token0Mint,
+      payer,
+      AuthorityType.MintTokens,
+      null
+    );
+
+    await setAuthority(
+      provider.connection,
+      payer,
+      token1Mint,
+      payer,
+      AuthorityType.MintTokens,
+      null
     );
 
 
@@ -1041,6 +1069,29 @@ describe("production-amm: add_liquidity", () => {
       userToken1Account.address,
       payer,
       10_000_000n
+    );
+
+    /*
+     * Revoke mint authority only after all test
+     * supply needed by this fresh pool has been
+     * minted.
+     */
+    await setAuthority(
+      provider.connection,
+      payer,
+      freshToken0,
+      payer,
+      AuthorityType.MintTokens,
+      null
+    );
+
+    await setAuthority(
+      provider.connection,
+      payer,
+      freshToken1,
+      payer,
+      AuthorityType.MintTokens,
+      null
     );
 
     /*

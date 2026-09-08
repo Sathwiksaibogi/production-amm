@@ -307,11 +307,17 @@ pub struct InitializePool<'info> {
     #[account(mut)]
     pub initializer: Signer<'info>,
 
+    #[account(
+        constraint=token_0_mint.freeze_authority.is_none() @ AmmError::FreezeAuthorityNotAllowed,
+        constraint = token_0_mint.mint_authority.is_none() @ AmmError::MintAuthorityNotAllowed,
+    )]
     pub token_0_mint: Account<'info, Mint>,
 
     #[account(
     constraint = token_0_mint.key() != token_1_mint.key() @ AmmError::IdenticalMints,
     constraint = token_0_mint.key() < token_1_mint.key() @ AmmError::NonCanonicalMintOrder,
+    constraint=token_1_mint.freeze_authority.is_none() @ AmmError::FreezeAuthorityNotAllowed,
+    constraint = token_1_mint.mint_authority.is_none() @ AmmError::MintAuthorityNotAllowed,
     )]
     pub token_1_mint: Account<'info, Mint>,
 
@@ -578,6 +584,10 @@ pub enum AmmError {
     MinimumAmountOutNotMet,
     #[msg("Swap output is zero")]
     ZeroSwapOutput,
+    #[msg("Token mint must not have a freeze authority")]
+    FreezeAuthorityNotAllowed,
+    #[msg("Token mint must not have a mint authority")]
+    MintAuthorityNotAllowed,
 }
 
 fn map_liquidity_math_error(err: AmmMathError) -> anchor_lang::error::Error {

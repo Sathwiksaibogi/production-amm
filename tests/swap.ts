@@ -5,12 +5,14 @@ import { expect } from "chai";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
+  AuthorityType,
   createMint,
   getAccount,
   getAssociatedTokenAddressSync,
   getMint,
   getOrCreateAssociatedTokenAccount,
   mintTo,
+  setAuthority,
 } from "@solana/spl-token";
 
 import {
@@ -239,6 +241,26 @@ describe("production-amm: swap", () => {
       userToken1,
       setupPayer,
       initialUserToken1,
+    );
+
+    // Mint the complete test supply first, then
+    // permanently revoke MintTokens authority.
+    await setAuthority(
+      connection,
+      setupPayer,
+      token0Mint,
+      setupPayer,
+      AuthorityType.MintTokens,
+      null,
+    );
+
+    await setAuthority(
+      connection,
+      setupPayer,
+      token1Mint,
+      setupPayer,
+      AuthorityType.MintTokens,
+      null,
     );
 
     await program.methods
@@ -753,6 +775,27 @@ describe("production-amm: swap", () => {
         emptyToken1Mint,
         trader,
       );
+
+    // This pool intentionally has no liquidity, so
+    // there is no test supply to mint. Revoke both
+    // mint authorities before initialization.
+    await setAuthority(
+      connection,
+      setupPayer,
+      emptyToken0Mint,
+      setupPayer,
+      AuthorityType.MintTokens,
+      null,
+    );
+
+    await setAuthority(
+      connection,
+      setupPayer,
+      emptyToken1Mint,
+      setupPayer,
+      AuthorityType.MintTokens,
+      null,
+    );
 
     await program.methods
       .initializePool()

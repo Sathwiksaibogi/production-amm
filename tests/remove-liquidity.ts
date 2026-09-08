@@ -4,12 +4,14 @@ import { Program } from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
+  AuthorityType,
   createMint,
   getAccount,
   getAssociatedTokenAddressSync,
   getMint,
   getOrCreateAssociatedTokenAccount,
   mintTo,
+  setAuthority,
 } from "@solana/spl-token";
 
 import {
@@ -256,6 +258,29 @@ describe("production-amm: remove_liquidity", () => {
       userToken1,
       payer,
       USER_INITIAL_TOKEN_1
+    );
+
+    /*
+     * Mint all test supply first, then permanently
+     * revoke the external mints' MintTokens
+     * authorities before pool initialization.
+     */
+    await setAuthority(
+      provider.connection,
+      payer,
+      token0Mint,
+      payer,
+      AuthorityType.MintTokens,
+      null
+    );
+
+    await setAuthority(
+      provider.connection,
+      payer,
+      token1Mint,
+      payer,
+      AuthorityType.MintTokens,
+      null
     );
 
 
