@@ -45,6 +45,16 @@ pub mod production_amm {
         };
         require!(lp_to_mint >= minimum_lp_out, AmmError::MinimumLpNotMet);
 
+        require!(
+            ctx.accounts.user_token_0.amount >= amount_0,
+            AmmError::InsufficientToken0Balance
+        );
+
+        require!(
+            ctx.accounts.user_token_1.amount >= amount_1,
+            AmmError::InsufficientToken1Balance
+        );
+
         let transfer_0_accounts = anchor_spl::token::TransferChecked {
             from: ctx.accounts.user_token_0.to_account_info(),
             mint: ctx.accounts.token_0_mint.to_account_info(),
@@ -588,6 +598,10 @@ pub enum AmmError {
     FreezeAuthorityNotAllowed,
     #[msg("Token mint must not have a mint authority")]
     MintAuthorityNotAllowed,
+    #[msg("Insufficient token-0 balance")]
+    InsufficientToken0Balance,
+    #[msg("Insufficient token-1 balance")]
+    InsufficientToken1Balance,
 }
 
 fn map_liquidity_math_error(err: AmmMathError) -> anchor_lang::error::Error {

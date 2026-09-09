@@ -5,6 +5,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   AuthorityType,
+  createAccount,
   createMint,
   getAccount,
   getAssociatedTokenAddressSync,
@@ -16,6 +17,7 @@ import {
 } from "@solana/spl-token";
 
 import {
+  Keypair,
   PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
@@ -1318,4 +1320,320 @@ describe("production-amm: add_liquidity", () => {
     );
   }
 );
+
+it(
+  "rejects liquidity when the provider has insufficient token-0 balance",
+  async () => {
+    /*
+     * Create a valid Token0 account:
+     *
+     * mint      = token0Mint
+     * authority = payer
+     * balance   = 0
+     *
+     * It satisfies our account constraints,
+     * but does not contain enough tokens.
+     */
+    const emptyToken0Keypair =
+      Keypair.generate();
+
+    const emptyToken0Account =
+      await createAccount(
+      provider.connection,
+      payer,
+      token0Mint,
+      payer.publicKey,
+      emptyToken0Keypair
+    );
+
+    /*
+     * Use a valid proportional deposit.
+     *
+     * Current pool ratio is still 1 : 4,
+     * so we deliberately avoid triggering
+     * InvalidLiquidityRatio first.
+     */
+    const amount0 = 100_000n;
+    const amount1 = 400_000n;
+
+    const vault0Before =
+      await getAccount(
+        provider.connection,
+        vault0
+      );
+
+    const vault1Before =
+      await getAccount(
+        provider.connection,
+        vault1
+      );
+
+    const lpMintBefore =
+      await getMint(
+        provider.connection,
+        lpMintPda
+      );
+
+    let caughtError: unknown = null;
+
+    try {
+      await program.methods
+        .addLiquidity(
+          new anchor.BN(
+            amount0.toString()
+          ),
+          new anchor.BN(
+            amount1.toString()
+          ),
+          new anchor.BN("0")
+        )
+        .accounts({
+          liquidityProvider:
+            payer.publicKey,
+
+          token0Mint,
+          token1Mint,
+
+          pool:
+            poolPda,
+
+          vault0,
+          vault1,
+
+          /*
+           * Empty but otherwise valid Token0
+           * account controlled by the provider.
+           */
+          userToken0:
+            emptyToken0Account,
+
+          /*
+           * Normal funded Token1 account.
+           */
+          userToken1,
+
+          lpMint:
+            lpMintPda,
+
+          userLpAccount,
+
+          systemProgram:
+            SystemProgram.programId,
+
+          tokenProgram:
+            TOKEN_PROGRAM_ID,
+
+          associatedTokenProgram:
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .rpc();
+    } catch (error) {
+      caughtError = error;
+    }
+
+    assert.isNotNull(
+      caughtError,
+      "Expected insufficient token-0 balance to fail"
+    );
+
+    assert.equal(
+      getAnchorErrorCode(caughtError),
+      "InsufficientToken0Balance"
+    );
+
+    /*
+     * Financial state must remain unchanged.
+     */
+    const vault0After =
+      await getAccount(
+        provider.connection,
+        vault0
+      );
+
+    const vault1After =
+      await getAccount(
+        provider.connection,
+        vault1
+      );
+
+    const lpMintAfter =
+      await getMint(
+        provider.connection,
+        lpMintPda
+      );
+
+    assert.equal(
+      vault0After.amount,
+      vault0Before.amount
+    );
+
+    assert.equal(
+      vault1After.amount,
+      vault1Before.amount
+    );
+
+    assert.equal(
+      lpMintAfter.supply,
+      lpMintBefore.supply
+    );
+  }
+);
+
+it(
+  "rejects liquidity when the provider has insufficient token-1 balance",
+  async () => {
+    /*
+     * Create a valid, independent Token1 account:
+     *
+     * mint      = token1Mint
+     * authority = payer
+     * balance   = 0
+     *
+     * Supplying an explicit Keypair guarantees this is a
+     * regular token account rather than the provider's ATA.
+     */
+    const emptyToken1Keypair =
+      Keypair.generate();
+
+    const emptyToken1Account =
+      await createAccount(
+        provider.connection,
+        payer,
+        token1Mint,
+        payer.publicKey,
+        emptyToken1Keypair
+      );
+
+    /*
+     * Keep the deposit proportional to the current 1 : 4
+     * reserve ratio so the balance check is the condition
+     * that rejects the transaction.
+     */
+    const amount0 = 100_000n;
+    const amount1 = 400_000n;
+
+    const vault0Before =
+      await getAccount(
+        provider.connection,
+        vault0
+      );
+
+    const vault1Before =
+      await getAccount(
+        provider.connection,
+        vault1
+      );
+
+    const lpMintBefore =
+      await getMint(
+        provider.connection,
+        lpMintPda
+      );
+
+    let caughtError: unknown = null;
+
+    try {
+      await program.methods
+        .addLiquidity(
+          new anchor.BN(
+            amount0.toString()
+          ),
+          new anchor.BN(
+            amount1.toString()
+          ),
+          new anchor.BN("0")
+        )
+        .accounts({
+          liquidityProvider:
+            payer.publicKey,
+
+          token0Mint,
+          token1Mint,
+
+          pool:
+            poolPda,
+
+          vault0,
+          vault1,
+
+          /*
+           * Normal funded Token0 account.
+           */
+          userToken0,
+
+          /*
+           * Empty but otherwise valid Token1 account
+           * controlled by the provider.
+           */
+          userToken1:
+            emptyToken1Account,
+
+          lpMint:
+            lpMintPda,
+
+          userLpAccount,
+
+          systemProgram:
+            SystemProgram.programId,
+
+          tokenProgram:
+            TOKEN_PROGRAM_ID,
+
+          associatedTokenProgram:
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .rpc();
+    } catch (error) {
+      caughtError = error;
+    }
+
+    assert.isNotNull(
+      caughtError,
+      "Expected insufficient token-1 balance to fail"
+    );
+
+    assert.equal(
+      getAnchorErrorCode(caughtError),
+      "InsufficientToken1Balance"
+    );
+
+    /*
+     * Both user-balance checks occur before either transfer
+     * CPI, so vault reserves and LP supply must be unchanged.
+     */
+    const vault0After =
+      await getAccount(
+        provider.connection,
+        vault0
+      );
+
+    const vault1After =
+      await getAccount(
+        provider.connection,
+        vault1
+      );
+
+    const lpMintAfter =
+      await getMint(
+        provider.connection,
+        lpMintPda
+      );
+
+    assert.equal(
+      vault0After.amount,
+      vault0Before.amount
+    );
+
+    assert.equal(
+      vault1After.amount,
+      vault1Before.amount
+    );
+
+    assert.equal(
+      lpMintAfter.supply,
+      lpMintBefore.supply
+    );
+  }
+);
+
 });
