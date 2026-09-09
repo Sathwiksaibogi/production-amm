@@ -117,6 +117,8 @@ describe("production-amm: initialize_pool", () => {
   let vault1: PublicKey;
 
   let lpMintPda: PublicKey;
+  let lockAuthority: PublicKey;
+  let lockedLpAccount: PublicKey;
 
   async function revokeMintAuthority(mint: PublicKey): Promise<void> {
     await setAuthority(
@@ -127,6 +129,35 @@ describe("production-amm: initialize_pool", () => {
       AuthorityType.MintTokens,
       null
     );
+  }
+
+  function deriveLockAccounts(
+    pool: PublicKey,
+    lpMint: PublicKey
+  ): {
+    lockAuthority: PublicKey;
+    lockedLpAccount: PublicKey;
+  } {
+    const [lockAuthority] =
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("lock_authority"),
+          pool.toBuffer(),
+        ],
+        program.programId
+      );
+
+    const lockedLpAccount =
+      getAssociatedTokenAddressSync(
+        lpMint,
+        lockAuthority,
+        true
+      );
+
+    return {
+      lockAuthority,
+      lockedLpAccount,
+    };
   }
 
 async function createCanonicalMintPairWithMintAuthority(
@@ -373,6 +404,14 @@ async function createCanonicalMintPairWithMintAuthority(
         ],
         program.programId
       );
+
+    ({
+      lockAuthority,
+      lockedLpAccount,
+    } = deriveLockAccounts(
+      poolPda,
+      lpMintPda
+    ));
   });
 
   it("initializes the canonical pool", async () => {
@@ -391,6 +430,9 @@ async function createCanonicalMintPairWithMintAuthority(
         vault1,
 
         lpMint: lpMintPda,
+
+        lockAuthority,
+        lockedLpAccount,
 
         systemProgram:
           SystemProgram.programId,
@@ -560,6 +602,73 @@ async function createCanonicalMintPairWithMintAuthority(
   );
 
   it(
+    "creates the canonical locked LP ATA owned by the lock-authority PDA",
+    async () => {
+      const [expectedLockAuthority] =
+        PublicKey.findProgramAddressSync(
+          [
+            Buffer.from("lock_authority"),
+            poolPda.toBuffer(),
+          ],
+          program.programId
+        );
+
+      assert.isTrue(
+        lockAuthority.equals(
+          expectedLockAuthority
+        )
+      );
+
+      const expectedLockedLpAccount =
+        getAssociatedTokenAddressSync(
+          lpMintPda,
+          expectedLockAuthority,
+          true
+        );
+
+      assert.isTrue(
+        lockedLpAccount.equals(
+          expectedLockedLpAccount
+        )
+      );
+
+      const account =
+        await getAccount(
+          provider.connection,
+          lockedLpAccount
+        );
+
+      assert.isTrue(
+        account.mint.equals(
+          lpMintPda
+        )
+      );
+
+      assert.isTrue(
+        account.owner.equals(
+          lockAuthority
+        )
+      );
+
+      assert.equal(
+        account.amount,
+        0n
+      );
+
+      const mint =
+        await getMint(
+          provider.connection,
+          lpMintPda
+        );
+
+      assert.equal(
+        mint.supply,
+        0n
+      );
+    }
+  );
+
+  it(
     "rejects identical token mints",
     async () => {
       const sameMint =
@@ -601,6 +710,14 @@ async function createCanonicalMintPairWithMintAuthority(
           program.programId
         );
 
+      const {
+        lockAuthority: sameLockAuthority,
+        lockedLpAccount: sameLockedLpAccount,
+      } = deriveLockAccounts(
+        samePool,
+        sameLpMint
+      );
+
       let caughtError: unknown = null;
 
       try {
@@ -627,6 +744,12 @@ async function createCanonicalMintPairWithMintAuthority(
 
             lpMint:
               sameLpMint,
+
+            lockAuthority:
+              sameLockAuthority,
+
+            lockedLpAccount:
+              sameLockedLpAccount,
 
             systemProgram:
               SystemProgram.programId,
@@ -716,6 +839,14 @@ async function createCanonicalMintPairWithMintAuthority(
           program.programId
         );
 
+      const {
+        lockAuthority: reversedLockAuthority,
+        lockedLpAccount: reversedLockedLpAccount,
+      } = deriveLockAccounts(
+        reversedPool,
+        reversedLpMint
+      );
+
       let caughtError: unknown = null;
 
       try {
@@ -742,6 +873,12 @@ async function createCanonicalMintPairWithMintAuthority(
 
             lpMint:
               reversedLpMint,
+
+            lockAuthority:
+              reversedLockAuthority,
+
+            lockedLpAccount:
+              reversedLockedLpAccount,
 
             systemProgram:
               SystemProgram.programId,
@@ -797,6 +934,9 @@ async function createCanonicalMintPairWithMintAuthority(
 
             lpMint:
               lpMintPda,
+
+            lockAuthority,
+            lockedLpAccount,
 
             systemProgram:
               SystemProgram.programId,
@@ -873,6 +1013,14 @@ async function createCanonicalMintPairWithMintAuthority(
           program.programId
         );
 
+      const {
+        lockAuthority: freezeToken0LockAuthority,
+        lockedLpAccount: freezeToken0LockedLpAccount,
+      } = deriveLockAccounts(
+        freezePool,
+        freezeLpMint
+      );
+
       await expectAnchorError(
         program.methods
           .initializePool()
@@ -897,6 +1045,12 @@ async function createCanonicalMintPairWithMintAuthority(
 
             lpMint:
               freezeLpMint,
+
+            lockAuthority:
+              freezeToken0LockAuthority,
+
+            lockedLpAccount:
+              freezeToken0LockedLpAccount,
 
             systemProgram:
               SystemProgram.programId,
@@ -954,6 +1108,14 @@ async function createCanonicalMintPairWithMintAuthority(
           program.programId
         );
 
+      const {
+        lockAuthority: freezeToken1LockAuthority,
+        lockedLpAccount: freezeToken1LockedLpAccount,
+      } = deriveLockAccounts(
+        freezePool,
+        freezeLpMint
+      );
+
       await expectAnchorError(
         program.methods
           .initializePool()
@@ -978,6 +1140,12 @@ async function createCanonicalMintPairWithMintAuthority(
 
             lpMint:
               freezeLpMint,
+
+            lockAuthority:
+              freezeToken1LockAuthority,
+
+            lockedLpAccount:
+              freezeToken1LockedLpAccount,
 
             systemProgram:
               SystemProgram.programId,
@@ -1035,6 +1203,14 @@ async function createCanonicalMintPairWithMintAuthority(
         program.programId
       );
 
+    const {
+      lockAuthority: mintAuthorityToken0LockAuthority,
+      lockedLpAccount: mintAuthorityToken0LockedLpAccount,
+    } = deriveLockAccounts(
+      pool,
+      lpMint
+    );
+
     await expectAnchorError(
       program.methods
         .initializePool()
@@ -1052,6 +1228,12 @@ async function createCanonicalMintPairWithMintAuthority(
           vault0,
           vault1,
           lpMint,
+
+          lockAuthority:
+            mintAuthorityToken0LockAuthority,
+
+          lockedLpAccount:
+            mintAuthorityToken0LockedLpAccount,
 
           systemProgram:
             SystemProgram.programId,
@@ -1109,6 +1291,14 @@ it(
         program.programId
       );
 
+    const {
+      lockAuthority: mintAuthorityToken1LockAuthority,
+      lockedLpAccount: mintAuthorityToken1LockedLpAccount,
+    } = deriveLockAccounts(
+      pool,
+      lpMint
+    );
+
     await expectAnchorError(
       program.methods
         .initializePool()
@@ -1126,6 +1316,12 @@ it(
           vault0,
           vault1,
           lpMint,
+
+          lockAuthority:
+            mintAuthorityToken1LockAuthority,
+
+          lockedLpAccount:
+            mintAuthorityToken1LockedLpAccount,
 
           systemProgram:
             SystemProgram.programId,

@@ -46,6 +46,9 @@ describe("production-amm: swap", () => {
   let vault1: PublicKey;
   let lpMint: PublicKey;
 
+  let lockAuthority: PublicKey;
+  let lockedLpAccount: PublicKey;
+
   let userToken0: PublicKey;
   let userToken1: PublicKey;
   let userLpAccount: PublicKey;
@@ -57,6 +60,9 @@ describe("production-amm: swap", () => {
   const initialUserToken1 = 40_000_000n;
 
   const initialLpSupply = 2_000_000n;
+  const minimumLiquidity = 1_000n;
+  const initialProviderLp =
+    initialLpSupply - minimumLiquidity;
 
   const token0ToToken1 = {
     token0ToToken1: {},
@@ -201,6 +207,22 @@ describe("production-amm: swap", () => {
       program.programId,
     );
 
+    [lockAuthority] =
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("lock_authority"),
+          pool.toBuffer(),
+        ],
+        program.programId,
+      );
+
+    lockedLpAccount =
+      getAssociatedTokenAddressSync(
+        lpMint,
+        lockAuthority,
+        true,
+      );
+
     const token0Account =
       await getOrCreateAssociatedTokenAccount(
         connection,
@@ -273,6 +295,8 @@ describe("production-amm: swap", () => {
         vault0,
         vault1,
         lpMint,
+        lockAuthority,
+        lockedLpAccount,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram:
@@ -284,7 +308,7 @@ describe("production-amm: swap", () => {
       .addLiquidity(
         new anchor.BN(initialReserve0.toString()),
         new anchor.BN(initialReserve1.toString()),
-        new anchor.BN(initialLpSupply.toString()),
+        new anchor.BN(initialProviderLp.toString()),
       )
       .accounts({
         liquidityProvider: trader,
@@ -296,6 +320,8 @@ describe("production-amm: swap", () => {
         userToken0,
         userToken1,
         lpMint,
+        lockAuthority,
+        lockedLpAccount,
         userLpAccount,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
@@ -321,6 +347,16 @@ describe("production-amm: swap", () => {
       lpMint,
     );
 
+    const lockedLp = await getAccount(
+      connection,
+      lockedLpAccount,
+    );
+
+    const providerLp = await getAccount(
+      connection,
+      userLpAccount,
+    );
+
     expect(vault0Account.amount).to.equal(
       initialReserve0,
     );
@@ -331,6 +367,14 @@ describe("production-amm: swap", () => {
 
     expect(lpMintAccount.supply).to.equal(
       initialLpSupply,
+    );
+
+    expect(lockedLp.amount).to.equal(
+      minimumLiquidity,
+    );
+
+    expect(providerLp.amount).to.equal(
+      initialProviderLp,
     );
   });
 
@@ -760,6 +804,22 @@ describe("production-amm: swap", () => {
         program.programId,
       );
 
+    const [emptyLockAuthority] =
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("lock_authority"),
+          emptyPool.toBuffer(),
+        ],
+        program.programId,
+      );
+
+    const emptyLockedLpAccount =
+      getAssociatedTokenAddressSync(
+        emptyLpMint,
+        emptyLockAuthority,
+        true,
+      );
+
     const emptyUser0 =
       await getOrCreateAssociatedTokenAccount(
         connection,
@@ -807,6 +867,8 @@ describe("production-amm: swap", () => {
         vault0: emptyVault0,
         vault1: emptyVault1,
         lpMint: emptyLpMint,
+        lockAuthority: emptyLockAuthority,
+        lockedLpAccount: emptyLockedLpAccount,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram:

@@ -13,6 +13,7 @@ declare_id!("HVyRymResYhpSjAeLfQcabBTD8s15uXVzGZJUH5HjDHC");
 
 pub const LP_DECIMALS: u8 = 9;
 pub const SWAP_FEE_BPS: u16 = 30;
+pub const MINIMUM_LIQUIDITY: u64 = 1_000;
 
 #[program]
 pub mod production_amm {
@@ -37,11 +38,27 @@ pub mod production_amm {
         let reserve_1 = ctx.accounts.vault_1.amount;
         let lp_supply = ctx.accounts.lp_mint.supply;
 
-        let lp_to_mint = if lp_supply == 0 {
-            calculate_initial_liquidity(amount_0, amount_1).map_err(map_liquidity_math_error)?
+        let (lp_to_mint, locked_lp_to_mint) = if lp_supply == 0 {
+            let total_lp = calculate_initial_liquidity(amount_0, amount_1)
+                .map_err(map_liquidity_math_error)?;
+            require!(
+                ctx.accounts.locked_lp_account.amount == 0,
+                AmmError::InvalidLockedLiquidity
+            );
+            require!(
+                total_lp > MINIMUM_LIQUIDITY,
+                AmmError::InitialLiquidityTooSmall
+            );
+            (total_lp - MINIMUM_LIQUIDITY, MINIMUM_LIQUIDITY)
         } else {
-            calculate_liquidity_added(reserve_0, reserve_1, amount_0, amount_1, lp_supply)
-                .map_err(map_liquidity_math_error)?
+            require!(
+                ctx.accounts.locked_lp_account.amount >= MINIMUM_LIQUIDITY,
+                AmmError::InvalidLockedLiquidity
+            );
+            let provider_lp =
+                calculate_liquidity_added(reserve_0, reserve_1, amount_0, amount_1, lp_supply)
+                    .map_err(map_liquidity_math_error)?;
+            (provider_lp, 0)
         };
         require!(lp_to_mint >= minimum_lp_out, AmmError::MinimumLpNotMet);
 
@@ -97,6 +114,23 @@ pub mod production_amm {
             token_1_key.as_ref(),
             &pool_bump,
         ];
+
+        if locked_lp_to_mint > 0 {
+            let mint_locked_lp_accounts = anchor_spl::token::MintTo {
+                mint: ctx.accounts.lp_mint.to_account_info(),
+                to: ctx.accounts.locked_lp_account.to_account_info(),
+                authority: ctx.accounts.pool.to_account_info(),
+            };
+
+            anchor_spl::token::mint_to(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    mint_locked_lp_accounts,
+                    &[pool_signer_seeds],
+                ),
+                locked_lp_to_mint,
+            )?;
+        }
 
         let mint_lp_accounts = anchor_spl::token::MintTo {
             mint: ctx.accounts.lp_mint.to_account_info(),
@@ -321,7 +355,7 @@ pub struct InitializePool<'info> {
         constraint=token_0_mint.freeze_authority.is_none() @ AmmError::FreezeAuthorityNotAllowed,
         constraint = token_0_mint.mint_authority.is_none() @ AmmError::MintAuthorityNotAllowed,
     )]
-    pub token_0_mint: Account<'info, Mint>,
+    pub token_0_mint: Box<Account<'info, Mint>>,
 
     #[account(
     constraint = token_0_mint.key() != token_1_mint.key() @ AmmError::IdenticalMints,
@@ -329,7 +363,7 @@ pub struct InitializePool<'info> {
     constraint=token_1_mint.freeze_authority.is_none() @ AmmError::FreezeAuthorityNotAllowed,
     constraint = token_1_mint.mint_authority.is_none() @ AmmError::MintAuthorityNotAllowed,
     )]
-    pub token_1_mint: Account<'info, Mint>,
+    pub token_1_mint: Box<Account<'info, Mint>>,
 
     #[account(
         init,
@@ -338,7 +372,7 @@ pub struct InitializePool<'info> {
         seeds=[b"pool",token_0_mint.key().as_ref(),token_1_mint.key().as_ref()],
         bump
     )]
-    pub pool: Account<'info, Pool>,
+    pub pool: Box<Account<'info, Pool>>,
 
     #[account(
         init_if_needed,
@@ -346,7 +380,7 @@ pub struct InitializePool<'info> {
         associated_token::mint=token_0_mint,
         associated_token::authority=pool,
     )]
-    pub vault_0: Account<'info, TokenAccount>,
+    pub vault_0: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init_if_needed,
@@ -354,7 +388,7 @@ pub struct InitializePool<'info> {
         associated_token::mint=token_1_mint,
         associated_token::authority=pool,
     )]
-    pub vault_1: Account<'info, TokenAccount>,
+    pub vault_1: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -364,7 +398,28 @@ pub struct InitializePool<'info> {
         mint::decimals = LP_DECIMALS,
         mint::authority=pool,
     )]
-    pub lp_mint: Account<'info, Mint>,
+    pub lp_mint: Box<Account<'info, Mint>>,
+
+    /// CHECK:
+    /// This PDA stores no data.
+    /// It is used only as the authority of the permanently locked LP token account.
+    /// Its address is constrained by deterministic PDA seeds.
+    #[account(
+        seeds = [
+            b"lock_authority",
+            pool.key().as_ref()
+        ],
+        bump
+    )]
+    pub lock_authority: UncheckedAccount<'info>,
+
+    #[account(
+        init_if_needed,
+        payer=initializer,
+        associated_token::mint=lp_mint,
+        associated_token::authority=lock_authority,
+    )]
+    pub locked_lp_account: Box<Account<'info, TokenAccount>>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -424,6 +479,26 @@ pub struct AddLiquidity<'info> {
         mint::authority=pool,
     )]
     pub lp_mint: Box<Account<'info, Mint>>,
+
+    /// CHECK:
+    /// Deterministic PDA used only as the authority
+    /// of the permanently locked LP token account.
+    /// No account data is read or written.
+    #[account(
+        seeds = [
+            b"lock_authority",
+            pool.key().as_ref()
+            ],
+            bump
+        )]
+    pub lock_authority: UncheckedAccount<'info>,
+
+    #[account(
+        mut,
+        associated_token::mint = lp_mint,
+        associated_token::authority = lock_authority,
+    )]
+    pub locked_lp_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init_if_needed,
@@ -602,6 +677,10 @@ pub enum AmmError {
     InsufficientToken0Balance,
     #[msg("Insufficient token-1 balance")]
     InsufficientToken1Balance,
+    #[msg("Initial liquidity is too small to satisfy the minimum locked liquidity")]
+    InitialLiquidityTooSmall,
+    #[msg("Locked liquidity account is in an invalid state")]
+    InvalidLockedLiquidity,
 }
 
 fn map_liquidity_math_error(err: AmmMathError) -> anchor_lang::error::Error {

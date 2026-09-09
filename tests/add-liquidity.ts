@@ -90,6 +90,8 @@ describe("production-amm: add_liquidity", () => {
   let vault1: PublicKey;
 
   let lpMintPda: PublicKey;
+  let lockAuthority: PublicKey;
+  let lockedLpAccount: PublicKey;
 
   let userToken0: PublicKey;
   let userToken1: PublicKey;
@@ -112,8 +114,14 @@ describe("production-amm: add_liquidity", () => {
   const INITIAL_AMOUNT_1 =
     4_000_000n;
 
-  const INITIAL_LP =
+  const MINIMUM_LIQUIDITY =
+    1_000n;
+
+  const INITIAL_TOTAL_LP =
     2_000_000n;
+
+  const INITIAL_PROVIDER_LP =
+    INITIAL_TOTAL_LP - MINIMUM_LIQUIDITY;
 
 
   /*
@@ -220,6 +228,26 @@ describe("production-amm: add_liquidity", () => {
           poolPda.toBuffer(),
         ],
         program.programId
+      );
+
+    /*
+     * Deterministic lock-authority PDA and its
+     * canonical LP-token ATA.
+     */
+    [lockAuthority] =
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("lock_authority"),
+          poolPda.toBuffer(),
+        ],
+        program.programId
+      );
+
+    lockedLpAccount =
+      getAssociatedTokenAddressSync(
+        lpMintPda,
+        lockAuthority,
+        true
       );
 
 
@@ -335,6 +363,9 @@ describe("production-amm: add_liquidity", () => {
         lpMint:
           lpMintPda,
 
+        lockAuthority,
+        lockedLpAccount,
+
         systemProgram:
           SystemProgram.programId,
 
@@ -349,7 +380,7 @@ describe("production-amm: add_liquidity", () => {
 
 
   it(
-    "adds initial liquidity and mints geometric-mean LP tokens",
+    "adds initial liquidity, permanently locks the minimum LP, and gives the remainder to the provider",
     async () => {
       const user0Before =
         await getAccount(
@@ -373,7 +404,7 @@ describe("production-amm: add_liquidity", () => {
             INITIAL_AMOUNT_1.toString()
           ),
           new anchor.BN(
-            INITIAL_LP.toString()
+            INITIAL_PROVIDER_LP.toString()
           )
         )
         .accounts({
@@ -394,6 +425,9 @@ describe("production-amm: add_liquidity", () => {
 
           lpMint:
             lpMintPda,
+
+          lockAuthority,
+          lockedLpAccount,
 
           userLpAccount,
 
@@ -433,6 +467,12 @@ describe("production-amm: add_liquidity", () => {
           userLpAccount
         );
 
+      const lockedLp =
+        await getAccount(
+          provider.connection,
+          lockedLpAccount
+        );
+
       const user0After =
         await getAccount(
           provider.connection,
@@ -457,14 +497,32 @@ describe("production-amm: add_liquidity", () => {
       );
 
 
+      /*
+       * Total LP supply still represents the full
+       * geometric-mean liquidity value.
+       */
       assert.equal(
         lpMint.supply,
-        INITIAL_LP
+        INITIAL_TOTAL_LP
+      );
+
+      /*
+       * The first provider receives the total LP
+       * minus the permanently locked minimum.
+       */
+      assert.equal(
+        userLp.amount,
+        INITIAL_PROVIDER_LP
       );
 
       assert.equal(
-        userLp.amount,
-        INITIAL_LP
+        lockedLp.amount,
+        MINIMUM_LIQUIDITY
+      );
+
+      assert.equal(
+        userLp.amount + lockedLp.amount,
+        lpMint.supply
       );
 
 
@@ -534,6 +592,12 @@ describe("production-amm: add_liquidity", () => {
           userLpAccount
         );
 
+      const lockedLpBefore =
+        await getAccount(
+          provider.connection,
+          lockedLpAccount
+        );
+
 
       await program.methods
         .addLiquidity(
@@ -565,6 +629,9 @@ describe("production-amm: add_liquidity", () => {
 
           lpMint:
             lpMintPda,
+
+          lockAuthority,
+          lockedLpAccount,
 
           userLpAccount,
 
@@ -604,6 +671,12 @@ describe("production-amm: add_liquidity", () => {
           userLpAccount
         );
 
+      const lockedLpAfter =
+        await getAccount(
+          provider.connection,
+          lockedLpAccount
+        );
+
 
       assert.equal(
         vault0After.amount -
@@ -628,6 +701,21 @@ describe("production-amm: add_liquidity", () => {
         userLpAfter.amount -
           userLpBefore.amount,
         SECOND_LP
+      );
+
+      /*
+       * MINIMUM_LIQUIDITY is locked only once.
+       * Later deposits must not mint more tokens
+       * into the locked account.
+       */
+      assert.equal(
+        lockedLpAfter.amount,
+        lockedLpBefore.amount
+      );
+
+      assert.equal(
+        lockedLpAfter.amount,
+        MINIMUM_LIQUIDITY
       );
     }
   );
@@ -691,6 +779,9 @@ describe("production-amm: add_liquidity", () => {
 
             lpMint:
               lpMintPda,
+
+            lockAuthority,
+            lockedLpAccount,
 
             userLpAccount,
 
@@ -829,6 +920,9 @@ describe("production-amm: add_liquidity", () => {
             lpMint:
               lpMintPda,
 
+            lockAuthority,
+            lockedLpAccount,
+
             userLpAccount,
 
             systemProgram:
@@ -930,6 +1024,9 @@ describe("production-amm: add_liquidity", () => {
             lpMint:
               lpMintPda,
 
+            lockAuthority,
+            lockedLpAccount,
+
             userLpAccount,
 
             systemProgram:
@@ -961,6 +1058,352 @@ describe("production-amm: add_liquidity", () => {
       );
     }
   );
+  it(
+    "rejects first liquidity when total initial LP does not exceed the permanently locked minimum",
+    async () => {
+      /*
+       * Create a fresh pool with:
+       *
+       * sqrt(1_000 × 1_000) = 1_000 LP
+       *
+       * MINIMUM_LIQUIDITY is also 1_000, so the
+       * provider would receive zero redeemable LP.
+       */
+      const mintAKeypair = Keypair.generate();
+      const mintBKeypair = Keypair.generate();
+
+      const mintAIsToken0 =
+        Buffer.compare(
+          mintAKeypair.publicKey.toBuffer(),
+          mintBKeypair.publicKey.toBuffer()
+        ) < 0;
+
+      const token0Keypair = mintAIsToken0
+        ? mintAKeypair
+        : mintBKeypair;
+
+      const token1Keypair = mintAIsToken0
+        ? mintBKeypair
+        : mintAKeypair;
+
+      const smallToken0Mint =
+        await createMint(
+          provider.connection,
+          payer,
+          payer.publicKey,
+          null,
+          6,
+          token0Keypair
+        );
+
+      const smallToken1Mint =
+        await createMint(
+          provider.connection,
+          payer,
+          payer.publicKey,
+          null,
+          6,
+          token1Keypair
+        );
+
+      const userSmallToken0 =
+        await getOrCreateAssociatedTokenAccount(
+          provider.connection,
+          payer,
+          smallToken0Mint,
+          payer.publicKey
+        );
+
+      const userSmallToken1 =
+        await getOrCreateAssociatedTokenAccount(
+          provider.connection,
+          payer,
+          smallToken1Mint,
+          payer.publicKey
+        );
+
+      await mintTo(
+        provider.connection,
+        payer,
+        smallToken0Mint,
+        userSmallToken0.address,
+        payer,
+        1_000n
+      );
+
+      await mintTo(
+        provider.connection,
+        payer,
+        smallToken1Mint,
+        userSmallToken1.address,
+        payer,
+        1_000n
+      );
+
+      await setAuthority(
+        provider.connection,
+        payer,
+        smallToken0Mint,
+        payer,
+        AuthorityType.MintTokens,
+        null
+      );
+
+      await setAuthority(
+        provider.connection,
+        payer,
+        smallToken1Mint,
+        payer,
+        AuthorityType.MintTokens,
+        null
+      );
+
+      const [smallPool] =
+        PublicKey.findProgramAddressSync(
+          [
+            Buffer.from("pool"),
+            smallToken0Mint.toBuffer(),
+            smallToken1Mint.toBuffer(),
+          ],
+          program.programId
+        );
+
+      const smallVault0 =
+        getAssociatedTokenAddressSync(
+          smallToken0Mint,
+          smallPool,
+          true
+        );
+
+      const smallVault1 =
+        getAssociatedTokenAddressSync(
+          smallToken1Mint,
+          smallPool,
+          true
+        );
+
+      const [smallLpMint] =
+        PublicKey.findProgramAddressSync(
+          [
+            Buffer.from("lp_mint"),
+            smallPool.toBuffer(),
+          ],
+          program.programId
+        );
+
+      const [smallLockAuthority] =
+        PublicKey.findProgramAddressSync(
+          [
+            Buffer.from("lock_authority"),
+            smallPool.toBuffer(),
+          ],
+          program.programId
+        );
+
+      const smallLockedLpAccount =
+        getAssociatedTokenAddressSync(
+          smallLpMint,
+          smallLockAuthority,
+          true
+        );
+
+      const smallUserLpAccount =
+        getAssociatedTokenAddressSync(
+          smallLpMint,
+          payer.publicKey
+        );
+
+      await program.methods
+        .initializePool()
+        .accounts({
+          initializer:
+            payer.publicKey,
+
+          token0Mint:
+            smallToken0Mint,
+
+          token1Mint:
+            smallToken1Mint,
+
+          pool:
+            smallPool,
+
+          vault0:
+            smallVault0,
+
+          vault1:
+            smallVault1,
+
+          lpMint:
+            smallLpMint,
+
+          lockAuthority:
+            smallLockAuthority,
+
+          lockedLpAccount:
+            smallLockedLpAccount,
+
+          systemProgram:
+            SystemProgram.programId,
+
+          tokenProgram:
+            TOKEN_PROGRAM_ID,
+
+          associatedTokenProgram:
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .rpc();
+
+      const vault0Before =
+        await getAccount(
+          provider.connection,
+          smallVault0
+        );
+
+      const vault1Before =
+        await getAccount(
+          provider.connection,
+          smallVault1
+        );
+
+      const lpBefore =
+        await getMint(
+          provider.connection,
+          smallLpMint
+        );
+
+      const lockedBefore =
+        await getAccount(
+          provider.connection,
+          smallLockedLpAccount
+        );
+
+      let caughtError: unknown = null;
+
+      try {
+        await program.methods
+          .addLiquidity(
+            new anchor.BN("1000"),
+            new anchor.BN("1000"),
+            new anchor.BN("0")
+          )
+          .accounts({
+            liquidityProvider:
+              payer.publicKey,
+
+            token0Mint:
+              smallToken0Mint,
+
+            token1Mint:
+              smallToken1Mint,
+
+            pool:
+              smallPool,
+
+            vault0:
+              smallVault0,
+
+            vault1:
+              smallVault1,
+
+            userToken0:
+              userSmallToken0.address,
+
+            userToken1:
+              userSmallToken1.address,
+
+            lpMint:
+              smallLpMint,
+
+            lockAuthority:
+              smallLockAuthority,
+
+            lockedLpAccount:
+              smallLockedLpAccount,
+
+            userLpAccount:
+              smallUserLpAccount,
+
+            systemProgram:
+              SystemProgram.programId,
+
+            tokenProgram:
+              TOKEN_PROGRAM_ID,
+
+            associatedTokenProgram:
+              ASSOCIATED_TOKEN_PROGRAM_ID,
+          })
+          .rpc();
+      } catch (error) {
+        caughtError = error;
+      }
+
+      assert.isNotNull(
+        caughtError,
+        "Expected first liquidity at the locked minimum to fail"
+      );
+
+      assert.equal(
+        getAnchorErrorCode(caughtError),
+        "InitialLiquidityTooSmall"
+      );
+
+      const vault0After =
+        await getAccount(
+          provider.connection,
+          smallVault0
+        );
+
+      const vault1After =
+        await getAccount(
+          provider.connection,
+          smallVault1
+        );
+
+      const lpAfter =
+        await getMint(
+          provider.connection,
+          smallLpMint
+        );
+
+      const lockedAfter =
+        await getAccount(
+          provider.connection,
+          smallLockedLpAccount
+        );
+
+      assert.equal(
+        vault0After.amount,
+        vault0Before.amount
+      );
+
+      assert.equal(
+        vault1After.amount,
+        vault1Before.amount
+      );
+
+      assert.equal(
+        lpAfter.supply,
+        lpBefore.supply
+      );
+
+      assert.equal(
+        lockedAfter.amount,
+        lockedBefore.amount
+      );
+
+      assert.equal(
+        lpAfter.supply,
+        0n
+      );
+
+      assert.equal(
+        lockedAfter.amount,
+        0n
+      );
+    }
+  );
+
   it(
   "treats tokens sent to a vault before first liquidity as a donation",
   async () => {
@@ -1031,6 +1474,22 @@ describe("production-amm: add_liquidity", () => {
           freshPool.toBuffer(),
         ],
         program.programId
+      );
+
+    const [freshLockAuthority] =
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("lock_authority"),
+          freshPool.toBuffer(),
+        ],
+        program.programId
+      );
+
+    const freshLockedLpAccount =
+      getAssociatedTokenAddressSync(
+        freshLpMint,
+        freshLockAuthority,
+        true
       );
 
     const userToken0Account =
@@ -1125,6 +1584,12 @@ describe("production-amm: add_liquidity", () => {
         lpMint:
           freshLpMint,
 
+        lockAuthority:
+          freshLockAuthority,
+
+        lockedLpAccount:
+          freshLockedLpAccount,
+
         systemProgram:
           SystemProgram.programId,
 
@@ -1173,8 +1638,19 @@ describe("production-amm: add_liquidity", () => {
         freshVault0
       );
 
+    const lockedBefore =
+      await getAccount(
+        provider.connection,
+        freshLockedLpAccount
+      );
+
     assert.equal(
       lpBefore.supply,
+      0n
+    );
+
+    assert.equal(
+      lockedBefore.amount,
       0n
     );
 
@@ -1206,8 +1682,11 @@ describe("production-amm: add_liquidity", () => {
     const amount1 =
       4_000_000n;
 
-    const expectedLp =
+    const expectedTotalLp =
       2_000_000n;
+
+    const expectedProviderLp =
+      expectedTotalLp - MINIMUM_LIQUIDITY;
 
     const userLpAccount =
       getAssociatedTokenAddressSync(
@@ -1224,7 +1703,7 @@ describe("production-amm: add_liquidity", () => {
           amount1.toString()
         ),
         new anchor.BN(
-          expectedLp.toString()
+          expectedProviderLp.toString()
         )
       )
       .accounts({
@@ -1254,6 +1733,12 @@ describe("production-amm: add_liquidity", () => {
 
         lpMint:
           freshLpMint,
+
+        lockAuthority:
+          freshLockAuthority,
+
+        lockedLpAccount:
+          freshLockedLpAccount,
 
         userLpAccount,
 
@@ -1292,6 +1777,12 @@ describe("production-amm: add_liquidity", () => {
         userLpAccount
       );
 
+    const lockedLpAfter =
+      await getAccount(
+        provider.connection,
+        freshLockedLpAccount
+      );
+
     /*
      * Donation remains in the vault.
      */
@@ -1311,12 +1802,22 @@ describe("production-amm: add_liquidity", () => {
      */
     assert.equal(
       lpAfter.supply,
-      expectedLp
+      expectedTotalLp
     );
 
     assert.equal(
       userLpAfter.amount,
-      expectedLp
+      expectedProviderLp
+    );
+
+    assert.equal(
+      lockedLpAfter.amount,
+      MINIMUM_LIQUIDITY
+    );
+
+    assert.equal(
+      userLpAfter.amount + lockedLpAfter.amount,
+      lpAfter.supply
     );
   }
 );
@@ -1414,6 +1915,9 @@ it(
 
           lpMint:
             lpMintPda,
+
+          lockAuthority,
+          lockedLpAccount,
 
           userLpAccount,
 
@@ -1571,6 +2075,9 @@ it(
           lpMint:
             lpMintPda,
 
+          lockAuthority,
+          lockedLpAccount,
+
           userLpAccount,
 
           systemProgram:
@@ -1632,6 +2139,240 @@ it(
     assert.equal(
       lpMintAfter.supply,
       lpMintBefore.supply
+    );
+  }
+);
+
+
+
+it(
+  "accepts later liquidity after extra LP is donated to the locked account",
+  async () => {
+    /*
+     * At this point the main pool has already received:
+     *
+     * initial liquidity:
+     *   reserves = 1,000,000 / 4,000,000
+     *   LP supply = 2,000,000
+     *
+     * second proportional deposit:
+     *   reserves = 1,500,000 / 6,000,000
+     *   LP supply = 3,000,000
+     *
+     * The protocol originally locked 1,000 LP.
+     */
+    const lockedBeforeDonation =
+      await getAccount(
+        provider.connection,
+        lockedLpAccount
+      );
+
+    const userLpBeforeDonation =
+      await getAccount(
+        provider.connection,
+        userLpAccount
+      );
+
+    const lpMintBeforeDonation =
+      await getMint(
+        provider.connection,
+        lpMintPda
+      );
+
+    assert.equal(
+      lockedBeforeDonation.amount,
+      MINIMUM_LIQUIDITY
+    );
+
+    /*
+     * Anyone who owns LP tokens can transfer existing LP
+     * into the locked account. This must NOT increase supply.
+     */
+    const donatedLp = 1n;
+
+    await transfer(
+      provider.connection,
+      payer,
+      userLpAccount,
+      lockedLpAccount,
+      payer,
+      donatedLp
+    );
+
+    const lockedAfterDonation =
+      await getAccount(
+        provider.connection,
+        lockedLpAccount
+      );
+
+    const userLpAfterDonation =
+      await getAccount(
+        provider.connection,
+        userLpAccount
+      );
+
+    const lpMintAfterDonation =
+      await getMint(
+        provider.connection,
+        lpMintPda
+      );
+
+    assert.equal(
+      lockedAfterDonation.amount,
+      MINIMUM_LIQUIDITY + donatedLp
+    );
+
+    assert.equal(
+      userLpBeforeDonation.amount -
+        userLpAfterDonation.amount,
+      donatedLp
+    );
+
+    assert.equal(
+      lpMintAfterDonation.supply,
+      lpMintBeforeDonation.supply
+    );
+
+    /*
+     * Because add_liquidity requires:
+     *
+     * locked_lp_account.amount >= MINIMUM_LIQUIDITY
+     *
+     * rather than exact equality, the extra donated LP must
+     * not DoS future liquidity additions.
+     *
+     * Current pool ratio is still 1 : 4.
+     */
+    const amount0 = 100_000n;
+    const amount1 = 400_000n;
+
+    const vault0Before =
+      await getAccount(
+        provider.connection,
+        vault0
+      );
+
+    const vault1Before =
+      await getAccount(
+        provider.connection,
+        vault1
+      );
+
+    const lpSupplyBeforeAdd =
+      lpMintAfterDonation.supply;
+
+    const expectedProviderLp =
+      (amount0 * lpSupplyBeforeAdd) /
+      vault0Before.amount;
+
+    await program.methods
+      .addLiquidity(
+        new anchor.BN(
+          amount0.toString()
+        ),
+        new anchor.BN(
+          amount1.toString()
+        ),
+        new anchor.BN(
+          expectedProviderLp.toString()
+        )
+      )
+      .accounts({
+        liquidityProvider:
+          payer.publicKey,
+
+        token0Mint,
+        token1Mint,
+
+        pool:
+          poolPda,
+
+        vault0,
+        vault1,
+
+        userToken0,
+        userToken1,
+
+        lpMint:
+          lpMintPda,
+
+        lockAuthority,
+        lockedLpAccount,
+
+        userLpAccount,
+
+        systemProgram:
+          SystemProgram.programId,
+
+        tokenProgram:
+          TOKEN_PROGRAM_ID,
+
+        associatedTokenProgram:
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+
+    const lockedAfterAdd =
+      await getAccount(
+        provider.connection,
+        lockedLpAccount
+      );
+
+    const userLpAfterAdd =
+      await getAccount(
+        provider.connection,
+        userLpAccount
+      );
+
+    const lpMintAfterAdd =
+      await getMint(
+        provider.connection,
+        lpMintPda
+      );
+
+    const vault0After =
+      await getAccount(
+        provider.connection,
+        vault0
+      );
+
+    const vault1After =
+      await getAccount(
+        provider.connection,
+        vault1
+      );
+
+    /*
+     * No new LP is minted to the lock account on later adds.
+     * The extra donated 1 LP simply remains there.
+     */
+    assert.equal(
+      lockedAfterAdd.amount,
+      MINIMUM_LIQUIDITY + donatedLp
+    );
+
+    assert.equal(
+      userLpAfterAdd.amount -
+        userLpAfterDonation.amount,
+      expectedProviderLp
+    );
+
+    assert.equal(
+      lpMintAfterAdd.supply -
+        lpSupplyBeforeAdd,
+      expectedProviderLp
+    );
+
+    assert.equal(
+      vault0After.amount -
+        vault0Before.amount,
+      amount0
+    );
+
+    assert.equal(
+      vault1After.amount -
+        vault1Before.amount,
+      amount1
     );
   }
 );

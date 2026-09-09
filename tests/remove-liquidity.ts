@@ -88,6 +88,9 @@ describe("production-amm: remove_liquidity", () => {
 
   let lpMintPda: PublicKey;
 
+  let lockAuthority: PublicKey;
+  let lockedLpAccount: PublicKey;
+
   let userToken0: PublicKey;
   let userToken1: PublicKey;
 
@@ -116,6 +119,12 @@ describe("production-amm: remove_liquidity", () => {
 
   const INITIAL_LP =
     2_000_000n;
+
+  const MINIMUM_LIQUIDITY =
+    1_000n;
+
+  const INITIAL_PROVIDER_LP =
+    INITIAL_LP - MINIMUM_LIQUIDITY;
 
 
   /*
@@ -210,6 +219,26 @@ describe("production-amm: remove_liquidity", () => {
           poolPda.toBuffer(),
         ],
         program.programId
+      );
+
+    /*
+     * Permanent-liquidity lock authority and its
+     * canonical LP token account.
+     */
+    [lockAuthority] =
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("lock_authority"),
+          poolPda.toBuffer(),
+        ],
+        program.programId
+      );
+
+    lockedLpAccount =
+      getAssociatedTokenAddressSync(
+        lpMintPda,
+        lockAuthority,
+        true
       );
 
 
@@ -318,6 +347,9 @@ describe("production-amm: remove_liquidity", () => {
         lpMint:
           lpMintPda,
 
+        lockAuthority,
+        lockedLpAccount,
+
         systemProgram:
           SystemProgram.programId,
 
@@ -342,7 +374,7 @@ describe("production-amm: remove_liquidity", () => {
           INITIAL_AMOUNT_1.toString()
         ),
         new anchor.BN(
-          INITIAL_LP.toString()
+          INITIAL_PROVIDER_LP.toString()
         )
       )
       .accounts({
@@ -363,6 +395,9 @@ describe("production-amm: remove_liquidity", () => {
 
         lpMint:
           lpMintPda,
+
+        lockAuthority,
+        lockedLpAccount,
 
         userLpAccount,
 
@@ -406,6 +441,12 @@ describe("production-amm: remove_liquidity", () => {
           userLpAccount
         );
 
+      const lockedLp =
+        await getAccount(
+          provider.connection,
+          lockedLpAccount
+        );
+
 
       assert.equal(
         vault0Account.amount,
@@ -424,7 +465,12 @@ describe("production-amm: remove_liquidity", () => {
 
       assert.equal(
         userLp.amount,
-        INITIAL_LP
+        INITIAL_PROVIDER_LP
+      );
+
+      assert.equal(
+        lockedLp.amount,
+        MINIMUM_LIQUIDITY
       );
     }
   );
@@ -650,7 +696,7 @@ describe("production-amm: remove_liquidity", () => {
 
       assert.equal(
         userLpAfter.amount,
-        1_500_000n
+        1_499_000n
       );
     }
   );
@@ -1218,7 +1264,7 @@ describe("production-amm: remove_liquidity", () => {
 
 
   it(
-    "removes all remaining liquidity and returns the pool to zero reserves and zero LP supply",
+    "removes all redeemable liquidity while preserving the permanently locked share",
     async () => {
       /*
        * After the successful partial withdrawal:
@@ -1227,7 +1273,8 @@ describe("production-amm: remove_liquidity", () => {
        * reserve 1 = 3,000,000
        * LP supply = 1,500,000
        *
-       * User owns all remaining LP.
+       * user LP   = 1,499,000
+       * locked LP =     1,000
        */
       const userLpBefore =
         await getAccount(
@@ -1235,7 +1282,13 @@ describe("production-amm: remove_liquidity", () => {
           userLpAccount
         );
 
-      const remainingLp =
+      const lockedLpBefore =
+        await getAccount(
+          provider.connection,
+          lockedLpAccount
+        );
+
+      const remainingUserLp =
         userLpBefore.amount;
 
 
@@ -1249,6 +1302,12 @@ describe("production-amm: remove_liquidity", () => {
         await getAccount(
           provider.connection,
           vault1
+        );
+
+      const lpMintBefore =
+        await getMint(
+          provider.connection,
+          lpMintPda
         );
 
 
@@ -1265,16 +1324,34 @@ describe("production-amm: remove_liquidity", () => {
         );
 
 
+      /*
+       * Withdrawal is proportional to TOTAL LP supply,
+       * including the permanently locked LP.
+       *
+       * token 0:
+       * floor(750,000 × 1,499,000 / 1,500,000)
+       * = 749,500
+       *
+       * token 1:
+       * floor(3,000,000 × 1,499,000 / 1,500,000)
+       * = 2,998,000
+       */
+      const expectedAmount0 =
+        749_500n;
+
+      const expectedAmount1 =
+        2_998_000n;
+
       await program.methods
         .removeLiquidity(
           new anchor.BN(
-            remainingLp.toString()
+            remainingUserLp.toString()
           ),
           new anchor.BN(
-            vault0Before.amount.toString()
+            expectedAmount0.toString()
           ),
           new anchor.BN(
-            vault1Before.amount.toString()
+            expectedAmount1.toString()
           )
         )
         .accounts({
@@ -1328,6 +1405,12 @@ describe("production-amm: remove_liquidity", () => {
           userLpAccount
         );
 
+      const lockedLpAfter =
+        await getAccount(
+          provider.connection,
+          lockedLpAccount
+        );
+
       const userToken0After =
         await getAccount(
           provider.connection,
@@ -1342,65 +1425,75 @@ describe("production-amm: remove_liquidity", () => {
 
 
       /*
-       * Full withdrawal empties reserves.
+       * Every user-owned LP token is redeemed,
+       * while the permanently locked LP remains.
        */
-      assert.equal(
-        vault0After.amount,
-        0n
-      );
-
-      assert.equal(
-        vault1After.amount,
-        0n
-      );
-
-
-      /*
-       * All LP tokens have been burned.
-       */
-      assert.equal(
-        lpMintAfter.supply,
-        0n
-      );
-
       assert.equal(
         userLpAfter.amount,
         0n
       );
 
+      assert.equal(
+        lockedLpAfter.amount,
+        MINIMUM_LIQUIDITY
+      );
+
+      assert.equal(
+        lpMintAfter.supply,
+        MINIMUM_LIQUIDITY
+      );
+
+      assert.equal(
+        lpMintBefore.supply -
+          lpMintAfter.supply,
+        remainingUserLp
+      );
+
 
       /*
-       * User receives every remaining
-       * reserve token.
+       * Reserves remain to back the locked LP.
        */
+      assert.equal(
+        vault0After.amount,
+        500n
+      );
+
+      assert.equal(
+        vault1After.amount,
+        2_000n
+      );
+
+
       assert.equal(
         userToken0After.amount -
           userToken0Before.amount,
-        vault0Before.amount
+        expectedAmount0
       );
 
       assert.equal(
         userToken1After.amount -
           userToken1Before.amount,
-        vault1Before.amount
+        expectedAmount1
       );
 
 
       /*
-       * Since this provider was the only LP
-       * and no donations/swaps occurred,
-       * after withdrawing everything they
-       * should end up with their original
-       * token balances.
+       * The first provider permanently sacrifices
+       * the reserve value backing MINIMUM_LIQUIDITY.
        */
       assert.equal(
         userToken0After.amount,
-        USER_INITIAL_TOKEN_0
+        USER_INITIAL_TOKEN_0 - 500n
       );
 
       assert.equal(
         userToken1After.amount,
-        USER_INITIAL_TOKEN_1
+        USER_INITIAL_TOKEN_1 - 2_000n
+      );
+
+      assert.equal(
+        lockedLpAfter.amount,
+        lockedLpBefore.amount
       );
     }
   );
