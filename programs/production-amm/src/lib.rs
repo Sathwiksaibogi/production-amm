@@ -25,6 +25,12 @@ pub mod production_amm {
         pool.token_1_mint = ctx.accounts.token_1_mint.key();
         pool.bump = ctx.bumps.pool;
 
+        emit!(PoolInitialized {
+            pool: ctx.accounts.pool.key(),
+            token_0_mint: ctx.accounts.token_0_mint.key(),
+            token_1_mint: ctx.accounts.token_1_mint.key(),
+            lp_mint: ctx.accounts.lp_mint.key(),
+        });
         Ok(())
     }
 
@@ -147,6 +153,14 @@ pub mod production_amm {
             lp_to_mint,
         )?;
 
+        emit!(LiquidityAdded {
+            pool: ctx.accounts.pool.key(),
+            provider: ctx.accounts.liquidity_provider.key(),
+            amount_0,
+            amount_1,
+            lp_minted: lp_to_mint,
+        });
+
         Ok(())
     }
 
@@ -239,6 +253,13 @@ pub mod production_amm {
             amount_1_out,
             ctx.accounts.token_1_mint.decimals,
         )?;
+        emit!(LiquidityRemoved {
+            pool: ctx.accounts.pool.key(),
+            provider: ctx.accounts.liquidity_provider.key(),
+            amount_0: amount_0_out,
+            amount_1: amount_1_out,
+            lp_burned: lp_to_burn,
+        });
 
         Ok(())
     }
@@ -341,6 +362,15 @@ pub mod production_amm {
             amount_out,
             output_decimals,
         )?;
+
+        emit!(SwapExecuted {
+            pool: ctx.accounts.pool.key(),
+            trader: ctx.accounts.trader.key(),
+            amount_in,
+            amount_out: swap_result.amount_out,
+            fee_amount: swap_result.fee_amount,
+            direction,
+        });
 
         Ok(())
     }
@@ -635,6 +665,41 @@ pub struct Pool {
 pub enum SwapDirection {
     Token0ToToken1,
     Token1ToToken0,
+}
+#[event]
+pub struct PoolInitialized {
+    pub pool: Pubkey,
+    pub token_0_mint: Pubkey,
+    pub token_1_mint: Pubkey,
+    pub lp_mint: Pubkey,
+}
+
+#[event]
+pub struct LiquidityAdded {
+    pub pool: Pubkey,
+    pub provider: Pubkey,
+    pub amount_0: u64,
+    pub amount_1: u64,
+    pub lp_minted: u64,
+}
+
+#[event]
+pub struct LiquidityRemoved {
+    pub pool: Pubkey,
+    pub provider: Pubkey,
+    pub amount_0: u64,
+    pub amount_1: u64,
+    pub lp_burned: u64,
+}
+
+#[event]
+pub struct SwapExecuted {
+    pub pool: Pubkey,
+    pub trader: Pubkey,
+    pub amount_in: u64,
+    pub amount_out: u64,
+    pub fee_amount: u64,
+    pub direction: SwapDirection,
 }
 
 #[error_code]
