@@ -36,45 +36,74 @@ pub mod production_amm {
 
     pub fn add_liquidity(
         ctx: Context<AddLiquidity>,
-        amount_0: u64,
-        amount_1: u64,
+        amount_0_desired: u64,
+        amount_1_desired: u64,
+        minimum_amount_0: u64,
+        minimum_amount_1: u64,
         minimum_lp_out: u64,
     ) -> Result<()> {
         let reserve_0 = ctx.accounts.vault_0.amount;
         let reserve_1 = ctx.accounts.vault_1.amount;
         let lp_supply = ctx.accounts.lp_mint.supply;
 
-        let (lp_to_mint, locked_lp_to_mint) = if lp_supply == 0 {
-            let total_lp = calculate_initial_liquidity(amount_0, amount_1)
-                .map_err(map_liquidity_math_error)?;
-            require!(
-                ctx.accounts.locked_lp_account.amount == 0,
-                AmmError::InvalidLockedLiquidity
-            );
-            require!(
-                total_lp > MINIMUM_LIQUIDITY,
-                AmmError::InitialLiquidityTooSmall
-            );
-            (total_lp - MINIMUM_LIQUIDITY, MINIMUM_LIQUIDITY)
-        } else {
-            require!(
-                ctx.accounts.locked_lp_account.amount >= MINIMUM_LIQUIDITY,
-                AmmError::InvalidLockedLiquidity
-            );
-            let provider_lp =
-                calculate_liquidity_added(reserve_0, reserve_1, amount_0, amount_1, lp_supply)
+        let (lp_to_mint, locked_lp_to_mint, amount_0_to_transfer, amount_1_to_transfer) =
+            if lp_supply == 0 {
+                let total_lp = calculate_initial_liquidity(amount_0_desired, amount_1_desired)
                     .map_err(map_liquidity_math_error)?;
-            (provider_lp, 0)
-        };
+                require!(
+                    ctx.accounts.locked_lp_account.amount == 0,
+                    AmmError::InvalidLockedLiquidity
+                );
+                require!(
+                    total_lp > MINIMUM_LIQUIDITY,
+                    AmmError::InitialLiquidityTooSmall
+                );
+                (
+                    total_lp - MINIMUM_LIQUIDITY,
+                    MINIMUM_LIQUIDITY,
+                    amount_0_desired,
+                    amount_1_desired,
+                )
+            } else {
+                require!(
+                    ctx.accounts.locked_lp_account.amount >= MINIMUM_LIQUIDITY,
+                    AmmError::InvalidLockedLiquidity
+                );
+                let result = calculate_liquidity_added(
+                    reserve_0,
+                    reserve_1,
+                    amount_0_desired,
+                    amount_1_desired,
+                    lp_supply,
+                )
+                .map_err(map_liquidity_math_error)?;
+                (
+                    result.lp_minted,
+                    0,
+                    result.amount_a_used,
+                    result.amount_b_used,
+                )
+            };
+
+        require!(
+            amount_0_to_transfer >= minimum_amount_0,
+            AmmError::MinimumAmount0NotMet
+        );
+
+        require!(
+            amount_1_to_transfer >= minimum_amount_1,
+            AmmError::MinimumAmount1NotMet
+        );
+
         require!(lp_to_mint >= minimum_lp_out, AmmError::MinimumLpNotMet);
 
         require!(
-            ctx.accounts.user_token_0.amount >= amount_0,
+            ctx.accounts.user_token_0.amount >= amount_0_to_transfer,
             AmmError::InsufficientToken0Balance
         );
 
         require!(
-            ctx.accounts.user_token_1.amount >= amount_1,
+            ctx.accounts.user_token_1.amount >= amount_1_to_transfer,
             AmmError::InsufficientToken1Balance
         );
 
@@ -90,7 +119,7 @@ pub mod production_amm {
                 ctx.accounts.token_program.to_account_info(),
                 transfer_0_accounts,
             ),
-            amount_0,
+            amount_0_to_transfer,
             ctx.accounts.token_0_mint.decimals,
         )?;
 
@@ -106,7 +135,7 @@ pub mod production_amm {
                 ctx.accounts.token_program.to_account_info(),
                 transfer_1_accounts,
             ),
-            amount_1,
+            amount_1_to_transfer,
             ctx.accounts.token_1_mint.decimals,
         )?;
 
@@ -156,8 +185,8 @@ pub mod production_amm {
         emit!(LiquidityAdded {
             pool: ctx.accounts.pool.key(),
             provider: ctx.accounts.liquidity_provider.key(),
-            amount_0,
-            amount_1,
+            amount_0: amount_0_to_transfer,
+            amount_1: amount_1_to_transfer,
             lp_minted: lp_to_mint,
         });
 
@@ -432,7 +461,7 @@ pub struct InitializePool<'info> {
 
     /// CHECK:
     /// This PDA stores no data.
-    /// It is used only as the authority of the permanently locked LP token account.
+    /// It is used only as the authority of the program-locked LP token account.
     /// Its address is constrained by deterministic PDA seeds.
     #[account(
         seeds = [
@@ -512,7 +541,7 @@ pub struct AddLiquidity<'info> {
 
     /// CHECK:
     /// Deterministic PDA used only as the authority
-    /// of the permanently locked LP token account.
+    /// of the program-locked LP token account.
     /// No account data is read or written.
     #[account(
         seeds = [
@@ -724,9 +753,9 @@ pub enum AmmError {
     LiquidityBurnExceedsSupply,
     #[msg("LP burn amount is too small to withdraw both assets")]
     ZeroWithdrawalAmount,
-    #[msg("Token 0 output is below the user's minimum")]
+    #[msg("Token 0 amount is below the user's minimum")]
     MinimumAmount0NotMet,
-    #[msg("Token 1 output is below the user's minimum")]
+    #[msg("Token 1 amount is below the user's minimum")]
     MinimumAmount1NotMet,
     #[msg("Liquidity provider does not have enough LP tokens")]
     InsufficientLpBalance,

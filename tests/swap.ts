@@ -308,7 +308,9 @@ describe("production-amm: swap", () => {
       .addLiquidity(
         new anchor.BN(initialReserve0.toString()),
         new anchor.BN(initialReserve1.toString()),
-        new anchor.BN(initialProviderLp.toString()),
+        new anchor.BN("0"),
+        new anchor.BN("0"),
+        new anchor.BN(initialProviderLp.toString())
       )
       .accounts({
         liquidityProvider: trader,

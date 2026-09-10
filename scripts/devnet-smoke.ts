@@ -312,9 +312,11 @@ describe("production-amm: devnet smoke", () => {
             new anchor.BN(
               initialAmount1.toString(),
             ),
+            new anchor.BN("0"),
+            new anchor.BN("0"),
             new anchor.BN(
               expectedProviderLp.toString(),
-            ),
+            )
           )
           .accounts({
             liquidityProvider:

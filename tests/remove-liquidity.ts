@@ -222,7 +222,7 @@ describe("production-amm: remove_liquidity", () => {
       );
 
     /*
-     * Permanent-liquidity lock authority and its
+     * Minimum-liquidity lock authority and its
      * canonical LP token account.
      */
     [lockAuthority] =
@@ -373,6 +373,8 @@ describe("production-amm: remove_liquidity", () => {
         new anchor.BN(
           INITIAL_AMOUNT_1.toString()
         ),
+        new anchor.BN("0"),
+        new anchor.BN("0"),
         new anchor.BN(
           INITIAL_PROVIDER_LP.toString()
         )
@@ -1264,7 +1266,7 @@ describe("production-amm: remove_liquidity", () => {
 
 
   it(
-    "removes all redeemable liquidity while preserving the permanently locked share",
+    "removes all redeemable liquidity while preserving the locked minimum-liquidity share",
     async () => {
       /*
        * After the successful partial withdrawal:
@@ -1326,7 +1328,7 @@ describe("production-amm: remove_liquidity", () => {
 
       /*
        * Withdrawal is proportional to TOTAL LP supply,
-       * including the permanently locked LP.
+       * including the locked LP.
        *
        * token 0:
        * floor(750,000 × 1,499,000 / 1,500,000)
@@ -1426,7 +1428,7 @@ describe("production-amm: remove_liquidity", () => {
 
       /*
        * Every user-owned LP token is redeemed,
-       * while the permanently locked LP remains.
+       * while the locked LP remains.
        */
       assert.equal(
         userLpAfter.amount,
@@ -1478,7 +1480,7 @@ describe("production-amm: remove_liquidity", () => {
 
 
       /*
-       * The first provider permanently sacrifices
+       * The first provider deposits into the locked account
        * the reserve value backing MINIMUM_LIQUIDITY.
        */
       assert.equal(

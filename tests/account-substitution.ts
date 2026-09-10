@@ -566,9 +566,11 @@ describe("production-amm: account substitution", () => {
         new anchor.BN(
           INITIAL_AMOUNT_1.toString(),
         ),
+        new anchor.BN("0"),
+        new anchor.BN("0"),
         new anchor.BN(
           INITIAL_PROVIDER_LP.toString(),
-        ),
+        )
       )
       .accounts({
         liquidityProvider:
@@ -842,6 +844,8 @@ describe("production-amm: account substitution", () => {
             new anchor.BN("500000"),
             new anchor.BN("400000"),
             new anchor.BN("0"),
+            new anchor.BN("0"),
+            new anchor.BN("0")
           )
           .accounts({
             liquidityProvider:

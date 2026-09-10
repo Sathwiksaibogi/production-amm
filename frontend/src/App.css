@@ -1,0 +1,2117 @@
+.app {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.glow {
+  position: fixed;
+
+  width: 32rem;
+  height: 32rem;
+
+  border-radius: 50%;
+
+  filter: blur(120px);
+
+  pointer-events: none;
+
+  opacity: 0.16;
+}
+
+.glow-one {
+  top: -12rem;
+  right: -12rem;
+
+  background: #536dff;
+}
+
+.glow-two {
+  bottom: -15rem;
+  left: -13rem;
+
+  background: #22c9a7;
+}
+
+
+
+.header {
+  position: sticky;
+
+  top: 0;
+
+  z-index: 20;
+
+  display: grid;
+
+  grid-template-columns:
+    1fr auto 1fr;
+
+  align-items: center;
+
+  min-height: 76px;
+
+  padding:
+    0 4vw;
+
+  border-bottom:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.07
+    );
+
+  background:
+    rgba(
+      7,
+      17,
+      31,
+      0.82
+    );
+
+  backdrop-filter:
+    blur(18px);
+}
+
+
+
+.brand {
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+}
+
+.brand-logo {
+  position: relative;
+
+  width: 40px;
+  height: 40px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.1
+    );
+
+  border-radius: 13px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(
+        84,
+        109,
+        255,
+        0.22
+      ),
+      rgba(
+        27,
+        200,
+        167,
+        0.1
+      )
+    );
+}
+
+.brand-logo span {
+  position: absolute;
+
+  left: 10px;
+
+  height: 3px;
+
+  border-radius: 999px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #91a3ff,
+      #4bdac0
+    );
+}
+
+.brand-logo span:nth-child(1) {
+  top: 11px;
+  width: 18px;
+}
+
+.brand-logo span:nth-child(2) {
+  top: 18px;
+  width: 13px;
+  left: 15px;
+}
+
+.brand-logo span:nth-child(3) {
+  top: 25px;
+  width: 9px;
+  left: 11px;
+}
+
+.brand-name {
+  font-weight: 800;
+
+  letter-spacing:
+    -0.03em;
+}
+
+.brand-caption {
+  margin-top: 2px;
+
+  color: #657791;
+
+  font-size: 0.7rem;
+}
+
+
+
+.navigation {
+  display: flex;
+
+  gap: 4px;
+
+  padding: 4px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.07
+    );
+
+  border-radius: 13px;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.025
+    );
+}
+
+.nav-button {
+  padding:
+    9px 16px;
+
+  border-radius: 9px;
+
+  color: #788aa3;
+
+  background:
+    transparent;
+
+  cursor: pointer;
+}
+
+.nav-button.active {
+  color: white;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.08
+    );
+}
+
+
+
+.header-right {
+  display: flex;
+
+  justify-content:
+    flex-end;
+
+  align-items: center;
+
+  gap: 10px;
+}
+
+.network-badge {
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  padding:
+    8px 11px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.08
+    );
+
+  border-radius:
+    999px;
+
+  color: #8799b1;
+
+  font-size: 0.75rem;
+
+  text-transform:
+    capitalize;
+}
+
+.network-dot {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background: #4addc0;
+
+  box-shadow:
+    0 0 14px
+    rgba(
+      74,
+      221,
+      192,
+      0.8
+    );
+}
+
+
+
+.wallet-adapter-button-trigger {
+  height: 42px !important;
+
+  border:
+    1px solid
+    rgba(
+      110,
+      137,
+      255,
+      0.3
+    ) !important;
+
+  border-radius:
+    12px !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      #4d66da,
+      #627eed
+    ) !important;
+
+  font-size:
+    0.85rem !important;
+}
+
+
+
+.main {
+  position: relative;
+
+  z-index: 1;
+
+  width:
+    min(
+      1180px,
+      calc(
+        100% - 40px
+      )
+    );
+
+  margin:
+    0 auto;
+
+  padding:
+    70px 0 28px;
+}
+
+
+
+.section-label {
+  margin-bottom: 10px;
+
+  color: #77d6c6;
+
+  font-size: 0.72rem;
+
+  font-weight: 800;
+
+  letter-spacing:
+    0.15em;
+}
+
+
+
+.hero {
+  display: grid;
+
+  grid-template-columns:
+    1fr auto;
+
+  align-items: end;
+
+  gap: 50px;
+
+  padding-bottom: 44px;
+}
+
+.hero-copy h1 {
+  max-width: 800px;
+
+  margin: 0;
+
+  color: #f3f7ff;
+
+  font-size:
+    clamp(
+      3rem,
+      6vw,
+      5.3rem
+    );
+
+  line-height: 0.98;
+
+  letter-spacing:
+    -0.065em;
+}
+
+.hero-copy p {
+  max-width: 680px;
+
+  margin:
+    22px 0 0;
+
+  color: #7a8ca6;
+
+  line-height: 1.75;
+}
+
+
+
+.verified-card {
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  min-width: 220px;
+
+  margin-bottom: 10px;
+
+  padding:
+    14px 16px;
+
+  border:
+    1px solid
+    rgba(
+      66,
+      218,
+      186,
+      0.15
+    );
+
+  border-radius: 16px;
+
+  background:
+    rgba(
+      27,
+      82,
+      72,
+      0.14
+    );
+}
+
+.check {
+  display: grid;
+
+  place-items: center;
+
+  width: 34px;
+  height: 34px;
+
+  border-radius: 10px;
+
+  color: #061611;
+
+  background: #50ddc0;
+
+  font-weight: 900;
+}
+
+.verified-card strong,
+.verified-card span {
+  display: block;
+}
+
+.verified-card strong {
+  font-size: 0.84rem;
+}
+
+.verified-card span {
+  margin-top: 4px;
+
+  color: #718e89;
+
+  font-size: 0.71rem;
+}
+
+
+
+.metrics {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      4,
+      1fr
+    );
+
+  gap: 10px;
+
+  margin-bottom: 18px;
+}
+
+.metric-card {
+  padding: 17px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.065
+    );
+
+  border-radius: 16px;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.025
+    );
+}
+
+.metric-card span,
+.metric-card small {
+  display: block;
+}
+
+.metric-card > span {
+  color: #657791;
+
+  font-size: 0.72rem;
+}
+
+.metric-card strong,
+.metric-card a {
+  display: block;
+
+  margin-top: 9px;
+
+  color: #e8eef9;
+
+  font-size: 1.02rem;
+
+  font-weight: 750;
+
+  text-decoration: none;
+}
+
+.metric-card a:hover {
+  color: #91a5ff;
+}
+
+.metric-card small {
+  margin-top: 5px;
+
+  color: #53657e;
+
+  font-size: 0.69rem;
+}
+
+
+
+.workspace {
+  display: grid;
+
+  grid-template-columns:
+    1fr minmax(
+      410px,
+      0.72fr
+    );
+
+  gap: 18px;
+}
+
+
+
+.protocol-info,
+.interface {
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.07
+    );
+
+  border-radius: 22px;
+}
+
+.protocol-info {
+  padding:
+    clamp(
+      30px,
+      5vw,
+      56px
+    );
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(
+        255,
+        255,
+        255,
+        0.035
+      ),
+      rgba(
+        255,
+        255,
+        255,
+        0.01
+      )
+    );
+}
+
+.protocol-info h2 {
+  max-width: 500px;
+
+  margin: 0;
+
+  font-size:
+    clamp(
+      2.2rem,
+      4vw,
+      3.6rem
+    );
+
+  line-height: 1.03;
+
+  letter-spacing:
+    -0.05em;
+}
+
+.protocol-info p {
+  max-width: 540px;
+
+  margin:
+    18px 0 0;
+
+  color: #74869f;
+
+  line-height: 1.75;
+}
+
+
+
+.feature-list {
+  margin-top: 40px;
+
+  border-top:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.06
+    );
+}
+
+.feature-list > div {
+  display: grid;
+
+  grid-template-columns:
+    48px 1fr;
+
+  align-items: center;
+
+  min-height: 54px;
+
+  border-bottom:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.06
+    );
+
+  color: #a5b3c6;
+
+  font-size: 0.84rem;
+}
+
+.feature-list span {
+  color: #4c607e;
+
+  font-size: 0.69rem;
+
+  font-weight: 800;
+}
+
+
+
+.interface {
+  display: flex;
+
+  align-items: center;
+
+  padding:
+    clamp(
+      18px,
+      3vw,
+      30px
+    );
+
+  background:
+    rgba(
+      11,
+      24,
+      42,
+      0.65
+    );
+}
+
+
+
+.trade-panel {
+  width: 100%;
+}
+
+.panel-header {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  align-items:
+    flex-start;
+
+  gap: 16px;
+
+  padding-bottom: 20px;
+}
+
+.panel-header h2 {
+  margin: 0;
+
+  font-size: 1.5rem;
+
+  letter-spacing:
+    -0.035em;
+}
+
+
+
+.settings-button {
+  display: grid;
+
+  place-items: center;
+
+  width: 38px;
+  height: 38px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.07
+    );
+
+  border-radius: 11px;
+
+  color: #899bb2;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.03
+    );
+}
+
+
+
+.token-field {
+  padding:
+    15px 16px 17px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.075
+    );
+
+  border-radius: 17px;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.035
+    );
+}
+
+.token-field:focus-within {
+  border-color:
+    rgba(
+      112,
+      137,
+      255,
+      0.42
+    );
+}
+
+.token-field-header {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  color: #687a94;
+
+  font-size: 0.72rem;
+}
+
+.token-field-body {
+  display: grid;
+
+  grid-template-columns:
+    1fr auto;
+
+  align-items: center;
+
+  gap: 14px;
+
+  margin-top: 12px;
+}
+
+.token-field input {
+  width: 100%;
+
+  min-width: 0;
+
+  border: 0;
+
+  outline: 0;
+
+  color: #f1f5ff;
+
+  background:
+    transparent;
+
+  font-size: 1.6rem;
+
+  font-weight: 700;
+}
+
+.token-field input::placeholder {
+  color: #40516b;
+}
+
+.token-pill {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  padding:
+    7px 10px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.08
+    );
+
+  border-radius: 11px;
+
+  color: #dae4f2;
+
+  background: #111e31;
+
+  font-size: 0.76rem;
+
+  font-weight: 700;
+}
+
+.token-symbol {
+  display: grid;
+
+  place-items: center;
+
+  width: 25px;
+  height: 25px;
+
+  border-radius: 50%;
+
+  color: #07111f;
+
+  background:
+    linear-gradient(
+      135deg,
+      #91a4ff,
+      #4cd8c0
+    );
+
+  font-size: 0.7rem;
+
+  font-weight: 900;
+}
+
+
+
+.reverse-container {
+  position: relative;
+
+  z-index: 2;
+
+  height: 8px;
+}
+
+.reverse-button {
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+
+  display: grid;
+
+  place-items: center;
+
+  width: 36px;
+  height: 36px;
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+
+  border:
+    4px solid #0c192b;
+
+  border-radius: 11px;
+
+  color: #9aaac0;
+
+  background: #16263b;
+
+  cursor: pointer;
+}
+
+
+
+.quote-details {
+  display: grid;
+
+  gap: 10px;
+
+  margin-top: 14px;
+
+  padding: 14px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.055
+    );
+
+  border-radius: 14px;
+
+  background:
+    rgba(
+      0,
+      0,
+      0,
+      0.12
+    );
+}
+
+.quote-details > div {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  gap: 18px;
+
+  color: #71839c;
+
+  font-size: 0.75rem;
+}
+
+.quote-details strong {
+  color: #afbdd0;
+}
+
+
+
+.primary-button {
+  width: 100%;
+
+  min-height: 50px;
+
+  margin-top: 14px;
+
+  border-radius: 14px;
+
+  color: white;
+
+  background:
+    linear-gradient(
+      135deg,
+      #526df5,
+      #6786ff
+    );
+
+  font-weight: 800;
+
+  cursor: pointer;
+}
+
+.primary-button:disabled {
+  color: #76869c;
+
+  background: #17253a;
+
+  cursor: not-allowed;
+}
+
+
+
+.transaction-note {
+  margin:
+    12px 6px 0;
+
+  color: #52647d;
+
+  font-size: 0.7rem;
+
+  line-height: 1.55;
+
+  text-align: center;
+}
+
+
+
+.mode-switch {
+  display: flex;
+
+  padding: 3px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.07
+    );
+
+  border-radius: 10px;
+}
+
+.mode-switch button {
+  padding:
+    7px 10px;
+
+  border-radius: 7px;
+
+  color: #71829a;
+
+  background:
+    transparent;
+
+  cursor: pointer;
+
+  font-size: 0.73rem;
+}
+
+.mode-switch button.active {
+  color: white;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.08
+    );
+}
+
+
+
+.info-message {
+  display: flex;
+
+  gap: 9px;
+
+  margin-bottom: 12px;
+
+  padding: 11px 12px;
+
+  border:
+    1px solid
+    rgba(
+      107,
+      132,
+      255,
+      0.12
+    );
+
+  border-radius: 12px;
+
+  color: #71839f;
+
+  background:
+    rgba(
+      78,
+      101,
+      201,
+      0.07
+    );
+
+  font-size: 0.73rem;
+
+  line-height: 1.5;
+}
+
+.info-message > span {
+  display: grid;
+
+  place-items: center;
+
+  flex-shrink: 0;
+
+  width: 18px;
+  height: 18px;
+
+  border-radius: 50%;
+
+  color: #cad4ff;
+
+  background:
+    rgba(
+      114,
+      139,
+      255,
+      0.18
+    );
+
+  font-weight: 900;
+}
+
+.field-gap {
+  height: 8px;
+}
+
+
+
+footer {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  gap: 20px;
+
+  padding:
+    28px 4px 0;
+
+  color: #445773;
+
+  font-size: 0.7rem;
+}
+
+footer > div {
+  font-weight: 800;
+
+  letter-spacing:
+    0.15em;
+}
+
+
+
+@media (
+  max-width: 920px
+) {
+  .header {
+    grid-template-columns:
+      1fr auto;
+
+    gap: 12px;
+
+    padding:
+      12px 20px;
+  }
+
+  .navigation {
+    grid-column:
+      1 / -1;
+
+    grid-row: 2;
+
+    justify-self: center;
+  }
+
+  .network-badge {
+    display: none;
+  }
+
+  .hero {
+    grid-template-columns:
+      1fr;
+  }
+
+  .verified-card {
+    width: fit-content;
+  }
+
+  .metrics {
+    grid-template-columns:
+      repeat(
+        2,
+        1fr
+      );
+  }
+
+  .workspace {
+    grid-template-columns:
+      1fr;
+  }
+}
+
+
+
+@media (
+  max-width: 560px
+) {
+  .main {
+    width:
+      calc(
+        100% - 24px
+      );
+
+    padding-top: 38px;
+  }
+
+  .header {
+    padding:
+      10px 12px;
+  }
+
+  .brand-caption {
+    display: none;
+  }
+
+  .hero-copy h1 {
+    font-size:
+      3rem;
+  }
+
+  .metrics {
+    grid-template-columns:
+      1fr;
+  }
+
+  .protocol-info {
+    padding:
+      28px 24px;
+  }
+
+  .interface {
+    padding: 14px;
+  }
+
+  footer {
+    flex-direction:
+      column;
+  }
+}
+
+.pools-panel {
+  width: 100%;
+}
+
+.pool-create-card {
+  padding: 18px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.07
+    );
+
+  border-radius: 17px;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.025
+    );
+}
+
+.pool-section-title {
+  color: #e6edf8;
+
+  font-size: 0.9rem;
+
+  font-weight: 800;
+}
+
+.pool-help {
+  margin:
+    8px 0 18px;
+
+  color: #687b95;
+
+  font-size: 0.73rem;
+
+  line-height: 1.6;
+}
+
+.pool-input-label {
+  display: block;
+
+  margin:
+    13px 0 7px;
+
+  color: #687b95;
+
+  font-size: 0.71rem;
+
+  font-weight: 700;
+}
+
+.pool-address-input {
+  width: 100%;
+
+  padding:
+    12px 13px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.08
+    );
+
+  border-radius: 11px;
+
+  outline: none;
+
+  color: #e9eef8;
+
+  background:
+    rgba(
+      0,
+      0,
+      0,
+      0.15
+    );
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 0.74rem;
+}
+
+.pool-address-input:focus {
+  border-color:
+    rgba(
+      112,
+      137,
+      255,
+      0.45
+    );
+}
+
+.derived-pool {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  gap: 18px;
+
+  margin-top: 14px;
+
+  padding: 11px 12px;
+
+  border-radius: 10px;
+
+  color: #70839c;
+
+  background:
+    rgba(
+      87,
+      105,
+      255,
+      0.07
+    );
+
+  font-size: 0.72rem;
+}
+
+.derived-pool strong {
+  color: #b8c5d7;
+}
+
+.pool-message {
+  margin-top: 13px;
+
+  padding: 11px 12px;
+
+  border-radius: 10px;
+
+  font-size: 0.72rem;
+
+  line-height: 1.5;
+}
+
+.pool-message.success {
+  color: #79d9c5;
+
+  background:
+    rgba(
+      53,
+      180,
+      151,
+      0.08
+    );
+
+  border:
+    1px solid
+    rgba(
+      53,
+      180,
+      151,
+      0.14
+    );
+}
+
+.pool-message.error {
+  color: #e69d9d;
+
+  background:
+    rgba(
+      190,
+      70,
+      70,
+      0.08
+    );
+
+  border:
+    1px solid
+    rgba(
+      190,
+      70,
+      70,
+      0.14
+    );
+}
+
+.pool-create-actions {
+  display: grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap: 8px;
+
+  margin-top: 14px;
+}
+
+.pool-create-button {
+  margin-top: 0;
+}
+
+.secondary-button {
+  min-height: 44px;
+
+  padding:
+    0 14px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.08
+    );
+
+  border-radius: 12px;
+
+  color: #a9b7ca;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.035
+    );
+
+  cursor: pointer;
+
+  font-weight: 700;
+}
+
+.secondary-button:disabled {
+  opacity: 0.45;
+
+  cursor: not-allowed;
+}
+
+.pool-transaction-link {
+  display: inline-block;
+
+  margin-top: 11px;
+
+  color: #8399ff;
+
+  font-size: 0.72rem;
+
+  text-decoration: none;
+}
+
+.existing-pools-header {
+  margin:
+    26px 2px 12px;
+}
+
+.existing-pools-header > div {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  gap: 15px;
+}
+
+.existing-pools-header span {
+  color: #61738d;
+
+  font-size: 0.7rem;
+}
+
+.pool-list {
+  display: grid;
+
+  gap: 10px;
+}
+
+.pool-card {
+  padding: 16px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.065
+    );
+
+  border-radius: 16px;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.022
+    );
+}
+
+.pool-card.selected {
+  border-color:
+    rgba(
+      85,
+      221,
+      194,
+      0.25
+    );
+
+  background:
+    rgba(
+      42,
+      143,
+      124,
+      0.055
+    );
+}
+
+.pool-card-top {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  gap: 15px;
+}
+
+.pool-card-top span {
+  display: block;
+
+  color: #63758f;
+
+  font-size: 0.68rem;
+}
+
+.pool-card-top a {
+  display: inline-block;
+
+  margin-top: 5px;
+
+  color: #d8e1ed;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    monospace;
+
+  font-size: 0.78rem;
+
+  text-decoration: none;
+}
+
+.active-pool-badge {
+  height: fit-content;
+
+  padding:
+    5px 8px;
+
+  border-radius: 999px;
+
+  color: #6ee0c8;
+
+  background:
+    rgba(
+      69,
+      218,
+      188,
+      0.09
+    );
+
+  font-size: 0.64rem;
+
+  font-weight: 800;
+}
+
+.pool-token-pair {
+  display: grid;
+
+  grid-template-columns:
+    1fr auto 1fr;
+
+  align-items: end;
+
+  gap: 10px;
+
+  margin-top: 16px;
+}
+
+.pool-token-pair small {
+  display: block;
+
+  color: #5f718a;
+
+  font-size: 0.65rem;
+}
+
+.pool-token-pair strong {
+  display: block;
+
+  margin-top: 4px;
+
+  color: #aab9cb;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    monospace;
+
+  font-size: 0.7rem;
+}
+
+.pool-token-pair > span {
+  color: #425570;
+}
+
+.pool-stats {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      3,
+      1fr
+    );
+
+  gap: 8px;
+
+  margin:
+    15px 0;
+}
+
+.pool-stats div {
+  padding: 9px;
+
+  border-radius: 10px;
+
+  background:
+    rgba(
+      0,
+      0,
+      0,
+      0.12
+    );
+}
+
+.pool-stats span {
+  display: block;
+
+  color: #61738d;
+
+  font-size: 0.63rem;
+}
+
+.pool-stats strong {
+  display: block;
+
+  margin-top: 5px;
+
+  color: #b6c2d1;
+
+  font-size: 0.74rem;
+}
+
+.selected-pool-button {
+  width: 100%;
+}
+
+.pool-card >
+.secondary-button {
+  width: 100%;
+}
+
+.empty-pools {
+  padding: 22px;
+
+  border:
+    1px dashed
+    rgba(
+      255,
+      255,
+      255,
+      0.08
+    );
+
+  border-radius: 14px;
+
+  color: #64768f;
+
+  font-size: 0.74rem;
+
+  text-align: center;
+}
+
+@media (
+  max-width: 560px
+) {
+  .pool-create-actions {
+    grid-template-columns:
+      1fr;
+  }
+
+  .pool-stats {
+    grid-template-columns:
+      1fr;
+  }
+}
+
+/* =========================================================
+   WORKSPACE LAYOUT REBALANCE
+   Smaller protocol panel + larger interactive area
+   ========================================================= */
+
+
+/*
+ * Give the application slightly more horizontal room.
+ */
+.main {
+  width:
+    min(
+      1380px,
+      calc(
+        100% - 40px
+      )
+    );
+}
+
+
+/*
+ * Main application workspace.
+ *
+ * Left:
+ *   compact protocol information
+ *
+ * Right:
+ *   Swap / Liquidity / Pools
+ */
+.workspace {
+  display: grid;
+
+  grid-template-columns:
+    minmax(
+      280px,
+      0.58fr
+    )
+    minmax(
+      600px,
+      1.42fr
+    );
+
+  gap: 18px;
+
+  align-items: start;
+}
+
+
+/* =========================================================
+   COMPACT PROTOCOL PANEL
+   ========================================================= */
+
+.compact-protocol {
+  align-self: start;
+
+  padding:
+    28px 26px;
+
+  min-width: 0;
+}
+
+
+.compact-protocol h2 {
+  max-width: 320px;
+
+  margin: 0;
+
+  font-size:
+    clamp(
+      1.9rem,
+      2.6vw,
+      2.8rem
+    );
+
+  line-height: 1;
+
+  letter-spacing:
+    -0.045em;
+}
+
+
+.compact-protocol p {
+  max-width: 340px;
+
+  margin:
+    13px 0 0;
+
+  color: #74869f;
+
+  font-size: 0.84rem;
+
+  line-height: 1.6;
+}
+
+
+/*
+ * Reduce vertical space consumed
+ * by protocol feature list.
+ */
+.compact-protocol
+.feature-list {
+  margin-top: 26px;
+}
+
+
+.compact-protocol
+.feature-list > div {
+  grid-template-columns:
+    36px 1fr;
+
+  min-height: 44px;
+
+  font-size: 0.76rem;
+}
+
+
+.compact-protocol
+.feature-list span {
+  font-size: 0.62rem;
+}
+
+
+
+/* =========================================================
+   LARGE INTERACTIVE PANEL
+   ========================================================= */
+
+.primary-interface {
+  width: 100%;
+
+  min-width: 0;
+
+  align-items: flex-start;
+
+  padding:
+    clamp(
+      22px,
+      2.4vw,
+      34px
+    );
+}
+
+
+/*
+ * Swap and liquidity should remain
+ * comfortable rather than becoming
+ * unnecessarily stretched.
+ */
+.primary-interface
+.trade-panel {
+  width: 100%;
+
+  max-width: 720px;
+
+  margin:
+    0 auto;
+}
+
+
+/*
+ * Pool discovery benefits from
+ * additional horizontal space.
+ */
+.primary-interface
+.pools-panel {
+  width: 100%;
+
+  max-width: none;
+}
+
+
+
+/* =========================================================
+   POOLS PAGE IMPROVEMENTS
+   ========================================================= */
+
+.primary-interface
+.pool-create-card {
+  padding: 22px;
+}
+
+
+.primary-interface
+.pool-address-input {
+  min-height: 46px;
+}
+
+
+.primary-interface
+.pool-card {
+  padding: 18px;
+}
+
+
+.primary-interface
+.pool-token-pair {
+  gap: 18px;
+}
+
+
+.primary-interface
+.pool-stats {
+  gap: 10px;
+}
+
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (
+  max-width: 1100px
+) {
+
+  /*
+   * Once there isn't enough horizontal
+   * room, stack both panels.
+   */
+  .workspace {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .compact-protocol {
+    padding:
+      28px;
+  }
+
+
+  .compact-protocol h2 {
+    max-width: 500px;
+
+    font-size:
+      clamp(
+        2rem,
+        5vw,
+        3rem
+      );
+  }
+
+
+  .compact-protocol p {
+    max-width: 600px;
+  }
+
+
+  /*
+   * Display protocol features more
+   * compactly on tablets.
+   */
+  .compact-protocol
+  .feature-list {
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        2,
+        1fr
+      );
+
+    gap:
+      0 26px;
+  }
+
+
+  .primary-interface
+  .trade-panel {
+    max-width: 680px;
+  }
+
+}
+
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (
+  max-width: 560px
+) {
+
+  .main {
+    width:
+      calc(
+        100% - 24px
+      );
+  }
+
+
+  .compact-protocol {
+    padding:
+      24px 20px;
+  }
+
+
+  .compact-protocol h2 {
+    font-size: 2rem;
+  }
+
+
+  .compact-protocol p {
+    font-size: 0.8rem;
+  }
+
+
+  .compact-protocol
+  .feature-list {
+    display: block;
+
+    margin-top: 22px;
+  }
+
+
+  .compact-protocol
+  .feature-list > div {
+    min-height: 42px;
+  }
+
+
+  .primary-interface {
+    padding: 14px;
+  }
+
+
+  .primary-interface
+  .pool-create-card {
+    padding: 16px;
+  }
+
+}

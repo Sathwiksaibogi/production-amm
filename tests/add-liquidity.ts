@@ -380,7 +380,7 @@ describe("production-amm: add_liquidity", () => {
 
 
   it(
-    "adds initial liquidity, permanently locks the minimum LP, and gives the remainder to the provider",
+    "adds initial liquidity, locks the minimum LP, and gives the remainder to the provider",
     async () => {
       const user0Before =
         await getAccount(
@@ -403,6 +403,8 @@ describe("production-amm: add_liquidity", () => {
           new anchor.BN(
             INITIAL_AMOUNT_1.toString()
           ),
+          new anchor.BN("0"),
+          new anchor.BN("0"),
           new anchor.BN(
             INITIAL_PROVIDER_LP.toString()
           )
@@ -508,7 +510,7 @@ describe("production-amm: add_liquidity", () => {
 
       /*
        * The first provider receives the total LP
-       * minus the permanently locked minimum.
+       * minus the locked minimum.
        */
       assert.equal(
         userLp.amount,
@@ -607,6 +609,8 @@ describe("production-amm: add_liquidity", () => {
           new anchor.BN(
             SECOND_AMOUNT_1.toString()
           ),
+          new anchor.BN("0"),
+          new anchor.BN("0"),
           new anchor.BN(
             SECOND_LP.toString()
           )
@@ -722,8 +726,227 @@ describe("production-amm: add_liquidity", () => {
 
 
   it(
-    "rejects a non-proportional liquidity deposit",
+    "uses only the optimal proportional amounts when desired amounts are imbalanced",
     async () => {
+      /*
+       * Current pool ratio is still 1 : 4.
+       *
+       * Desired maxima:
+       *   token 0 = 100_000
+       *   token 1 = 500_000
+       *
+       * Token 0 is limiting:
+       *
+       *   LP from token 0 = 100_000 * 3_000_000 / 1_500_000
+       *                   = 200_000
+       *
+       *   LP from token 1 = 500_000 * 3_000_000 / 6_000_000
+       *                   = 250_000
+       *
+       * Therefore:
+       *   LP minted    = 200_000
+       *   token 0 used = 100_000
+       *   token 1 used = 400_000
+       *
+       * The extra 100_000 token 1 remains in the user's wallet.
+       */
+      const desired0 =
+        100_000n;
+
+      const desired1 =
+        500_000n;
+
+      const expectedUsed0 =
+        100_000n;
+
+      const expectedUsed1 =
+        400_000n;
+
+      const expectedLp =
+        200_000n;
+
+
+      const vault0Before =
+        await getAccount(
+          provider.connection,
+          vault0
+        );
+
+      const vault1Before =
+        await getAccount(
+          provider.connection,
+          vault1
+        );
+
+      const user0Before =
+        await getAccount(
+          provider.connection,
+          userToken0
+        );
+
+      const user1Before =
+        await getAccount(
+          provider.connection,
+          userToken1
+        );
+
+      const lpMintBefore =
+        await getMint(
+          provider.connection,
+          lpMintPda
+        );
+
+      const userLpBefore =
+        await getAccount(
+          provider.connection,
+          userLpAccount
+        );
+
+
+      await program.methods
+        .addLiquidity(
+          new anchor.BN(
+            desired0.toString()
+          ),
+          new anchor.BN(
+            desired1.toString()
+          ),
+          new anchor.BN("0"),
+          new anchor.BN("0"),
+          new anchor.BN(
+            expectedLp.toString()
+          )
+        )
+        .accounts({
+          liquidityProvider:
+            payer.publicKey,
+
+          token0Mint,
+          token1Mint,
+
+          pool:
+            poolPda,
+
+          vault0,
+          vault1,
+
+          userToken0,
+          userToken1,
+
+          lpMint:
+            lpMintPda,
+
+          lockAuthority,
+          lockedLpAccount,
+
+          userLpAccount,
+
+          systemProgram:
+            SystemProgram.programId,
+
+          tokenProgram:
+            TOKEN_PROGRAM_ID,
+
+          associatedTokenProgram:
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .rpc();
+
+
+      const vault0After =
+        await getAccount(
+          provider.connection,
+          vault0
+        );
+
+      const vault1After =
+        await getAccount(
+          provider.connection,
+          vault1
+        );
+
+      const user0After =
+        await getAccount(
+          provider.connection,
+          userToken0
+        );
+
+      const user1After =
+        await getAccount(
+          provider.connection,
+          userToken1
+        );
+
+      const lpMintAfter =
+        await getMint(
+          provider.connection,
+          lpMintPda
+        );
+
+      const userLpAfter =
+        await getAccount(
+          provider.connection,
+          userLpAccount
+        );
+
+
+      assert.equal(
+        vault0After.amount -
+          vault0Before.amount,
+        expectedUsed0
+      );
+
+      assert.equal(
+        vault1After.amount -
+          vault1Before.amount,
+        expectedUsed1
+      );
+
+      assert.equal(
+        user0Before.amount -
+          user0After.amount,
+        expectedUsed0
+      );
+
+      assert.equal(
+        user1Before.amount -
+          user1After.amount,
+        expectedUsed1
+      );
+
+      assert.equal(
+        lpMintAfter.supply -
+          lpMintBefore.supply,
+        expectedLp
+      );
+
+      assert.equal(
+        userLpAfter.amount -
+          userLpBefore.amount,
+        expectedLp
+      );
+    }
+  );
+
+
+  it(
+    "rejects add liquidity when token-0 amount used is below the user's minimum",
+    async () => {
+      /*
+       * Current reserve ratio remains 1 : 4.
+       *
+       * Desired:
+       *   token 0 = 150_000
+       *   token 1 = 400_000
+       *
+       * Token 1 is limiting, therefore the protocol
+       * would use only:
+       *
+       *   token 0 = 100_000
+       *   token 1 = 400_000
+       *
+       * Requiring at least 100_001 token 0 must fail.
+       */
       const vault0Before =
         await getAccount(
           provider.connection,
@@ -748,17 +971,12 @@ describe("production-amm: add_liquidity", () => {
 
 
       try {
-        /*
-         * Current reserve ratio remains 1 : 4.
-         *
-         * 100_000 : 500_000
-         *
-         * is 1 : 5, so v1 must reject it.
-         */
         await program.methods
           .addLiquidity(
-            new anchor.BN("100000"),
-            new anchor.BN("500000"),
+            new anchor.BN("150000"),
+            new anchor.BN("400000"),
+            new anchor.BN("100001"),
+            new anchor.BN("0"),
             new anchor.BN("0")
           )
           .accounts({
@@ -802,24 +1020,151 @@ describe("production-amm: add_liquidity", () => {
 
       assert.isNotNull(
         caughtError,
-        "Expected invalid liquidity ratio to fail"
+        "Expected minimum token-0 protection to reject the deposit"
       );
-
 
       assert.equal(
         getAnchorErrorCode(
           caughtError
         ),
-        "InvalidLiquidityRatio"
+        "MinimumAmount0NotMet"
       );
 
 
+      const vault0After =
+        await getAccount(
+          provider.connection,
+          vault0
+        );
+
+      const vault1After =
+        await getAccount(
+          provider.connection,
+          vault1
+        );
+
+      const lpMintAfter =
+        await getMint(
+          provider.connection,
+          lpMintPda
+        );
+
+
+      assert.equal(
+        vault0After.amount,
+        vault0Before.amount
+      );
+
+      assert.equal(
+        vault1After.amount,
+        vault1Before.amount
+      );
+
+      assert.equal(
+        lpMintAfter.supply,
+        lpMintBefore.supply
+      );
+    }
+  );
+
+
+  it(
+    "rejects add liquidity when token-1 amount used is below the user's minimum",
+    async () => {
       /*
-       * Verify transaction atomicity:
+       * Desired:
+       *   token 0 = 100_000
+       *   token 1 = 500_000
        *
-       * failed deposit must not change
-       * reserves or LP supply.
+       * Token 0 is limiting, therefore token 1 used
+       * is only 400_000.
+       *
+       * Requiring at least 400_001 token 1 must fail.
        */
+      const vault0Before =
+        await getAccount(
+          provider.connection,
+          vault0
+        );
+
+      const vault1Before =
+        await getAccount(
+          provider.connection,
+          vault1
+        );
+
+      const lpMintBefore =
+        await getMint(
+          provider.connection,
+          lpMintPda
+        );
+
+
+      let caughtError: unknown =
+        null;
+
+
+      try {
+        await program.methods
+          .addLiquidity(
+            new anchor.BN("100000"),
+            new anchor.BN("500000"),
+            new anchor.BN("0"),
+            new anchor.BN("400001"),
+            new anchor.BN("0")
+          )
+          .accounts({
+            liquidityProvider:
+              payer.publicKey,
+
+            token0Mint,
+            token1Mint,
+
+            pool:
+              poolPda,
+
+            vault0,
+            vault1,
+
+            userToken0,
+            userToken1,
+
+            lpMint:
+              lpMintPda,
+
+            lockAuthority,
+            lockedLpAccount,
+
+            userLpAccount,
+
+            systemProgram:
+              SystemProgram.programId,
+
+            tokenProgram:
+              TOKEN_PROGRAM_ID,
+
+            associatedTokenProgram:
+              ASSOCIATED_TOKEN_PROGRAM_ID,
+          })
+          .rpc();
+      } catch (error) {
+        caughtError = error;
+      }
+
+
+      assert.isNotNull(
+        caughtError,
+        "Expected minimum token-1 protection to reject the deposit"
+      );
+
+      assert.equal(
+        getAnchorErrorCode(
+          caughtError
+        ),
+        "MinimumAmount1NotMet"
+      );
+
+
       const vault0After =
         await getAccount(
           provider.connection,
@@ -899,6 +1244,8 @@ describe("production-amm: add_liquidity", () => {
           .addLiquidity(
             new anchor.BN("100000"),
             new anchor.BN("400000"),
+            new anchor.BN("0"),
+            new anchor.BN("0"),
             new anchor.BN("200001")
           )
           .accounts({
@@ -1003,6 +1350,8 @@ describe("production-amm: add_liquidity", () => {
           .addLiquidity(
             new anchor.BN("0"),
             new anchor.BN("400000"),
+            new anchor.BN("0"),
+            new anchor.BN("0"),
             new anchor.BN("0")
           )
           .accounts({
@@ -1059,7 +1408,7 @@ describe("production-amm: add_liquidity", () => {
     }
   );
   it(
-    "rejects first liquidity when total initial LP does not exceed the permanently locked minimum",
+    "rejects first liquidity when total initial LP does not exceed the locked minimum",
     async () => {
       /*
        * Create a fresh pool with:
@@ -1285,6 +1634,8 @@ describe("production-amm: add_liquidity", () => {
           .addLiquidity(
             new anchor.BN("1000"),
             new anchor.BN("1000"),
+            new anchor.BN("0"),
+            new anchor.BN("0"),
             new anchor.BN("0")
           )
           .accounts({
@@ -1702,6 +2053,8 @@ describe("production-amm: add_liquidity", () => {
         new anchor.BN(
           amount1.toString()
         ),
+        new anchor.BN("0"),
+        new anchor.BN("0"),
         new anchor.BN(
           expectedProviderLp.toString()
         )
@@ -1886,6 +2239,8 @@ it(
           new anchor.BN(
             amount1.toString()
           ),
+          new anchor.BN("0"),
+          new anchor.BN("0"),
           new anchor.BN("0")
         )
         .accounts({
@@ -2045,6 +2400,8 @@ it(
           new anchor.BN(
             amount1.toString()
           ),
+          new anchor.BN("0"),
+          new anchor.BN("0"),
           new anchor.BN("0")
         )
         .accounts({
@@ -2273,6 +2630,8 @@ it(
         new anchor.BN(
           amount1.toString()
         ),
+        new anchor.BN("0"),
+        new anchor.BN("0"),
         new anchor.BN(
           expectedProviderLp.toString()
         )
