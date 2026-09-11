@@ -34,7 +34,7 @@ export function Header({
 
         <div>
           <div className="brand-name">
-            Invariant
+            K-Invariant
           </div>
 
           <div className="brand-caption">

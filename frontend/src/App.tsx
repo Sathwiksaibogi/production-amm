@@ -313,7 +313,7 @@ function App() {
         <footer>
 
           <div>
-            INVARIANT
+            K-INVARIANT
           </div>
 
           <span>
